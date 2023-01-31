@@ -22,8 +22,9 @@ tracing-subscriber = { version = "0.2" }
 rand = "0.8.5"
 
 [dependencies.ark-crypto-primitives]
-#version = "0.4"
 path = "/tmp/crypto-primitives"
+#git = "https://github.com/arkworks-rs/crypto-primitives.git"
+#rev = "4b3bdac"
 default-features = true
 features = [ "r1cs", "crh", "merkle_tree" ]
 

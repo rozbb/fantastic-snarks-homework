@@ -1,11 +1,6 @@
-use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
-use ark_crypto_primitives::merkle_tree::{Config, MerkleTree, Path};
-use ark_serialize::CanonicalSerialize;
+use arkworks_merkle_tree_example::common::{write_to_file, LeafHash, TwoToOneHash};
 
-use arkworks_merkle_tree_example::{
-    common::{write_params_to_file, write_to_file, LeafHash, TwoToOneHash},
-    SimpleMerkleTree,
-};
+use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
 
 fn main() {
     let mut rng = rand::thread_rng();

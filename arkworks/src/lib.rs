@@ -6,10 +6,14 @@ use ark_ff::Field;
 mod constraints;
 // mod constraints_test;
 
-use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
-use ark_crypto_primitives::merkle_tree::{
-    constraints::ConfigGadget, ByteDigestConverter, Config, MerkleTree, Path,
+use ark_crypto_primitives::{
+    crh::{CRHScheme, TwoToOneCRHScheme},
+    merkle_tree::{
+        constraints::ConfigGadget, ByteDigestConverter, Config, DigestConverter, MerkleTree, Path,
+    },
+    Error as ArkError,
 };
+use ark_serialize::CanonicalSerialize;
 
 #[derive(Clone)]
 pub struct MerkleConfig;

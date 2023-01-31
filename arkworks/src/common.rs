@@ -9,10 +9,12 @@ pub type TwoToOneHash = pedersen::TwoToOneCRH<Jubjub, TwoToOneWindow>;
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TwoToOneWindow;
 
-// `WINDOW_SIZE * NUM_WINDOWS` = 2 * 256 bits = enough for hashing two outputs.
+// `WINDOW_SIZE * NUM_WINDOWS` > 2 * 512 bits = enough for hashing two outputs. Affine curve points
+// are 512 bits because there currently isn't a DigestConverterGadget that knows how to do
+// compressed curve points.
 impl pedersen::Window for TwoToOneWindow {
-    const WINDOW_SIZE: usize = 4;
-    const NUM_WINDOWS: usize = 128;
+    const WINDOW_SIZE: usize = 8;
+    const NUM_WINDOWS: usize = 144;
 }
 
 pub type LeafHash = pedersen::CRH<Jubjub, LeafWindow>;
@@ -20,10 +22,11 @@ pub type LeafHash = pedersen::CRH<Jubjub, LeafWindow>;
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct LeafWindow;
 
-// `WINDOW_SIZE * NUM_WINDOWS` = 2 * 256 bits = enough for hashing two outputs.
+// We let leaves be bytestrings of length at most 16, i.e., bitlength at most 128. Thus we need
+// WINDOW_SIZE * NUM_WINDOWS to be at least 128.
 impl pedersen::Window for LeafWindow {
-    const WINDOW_SIZE: usize = 4;
-    const NUM_WINDOWS: usize = 144;
+    const WINDOW_SIZE: usize = 1;
+    const NUM_WINDOWS: usize = 128;
 }
 
 pub type TwoToOneHashGadget =
@@ -38,12 +41,7 @@ pub type TwoToOneHashParamsVar =
 
 pub type ConstraintF = ark_ed_on_bls12_381::Fq;
 
-use ark_ec::CurveGroup;
 use std::{fs::OpenOptions, io::Write, path::Path};
-
-pub fn write_params_to_file<C: CurveGroup>(path_str: &str, params: &pedersen::Parameters<C>) {
-    write_to_file(path_str, &params.generators);
-}
 
 pub fn write_to_file<S: CanonicalSerialize>(path_str: &str, data: &S) {
     // Convert string to FS path
