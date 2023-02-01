@@ -36,6 +36,7 @@ pub type SimplePathVar = PathVar<MerkleConfig, ConstraintF, MerkleConfigGadget>;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#[derive(Clone)]
 pub struct MerkleTreeVerification {
     // These are constants that will be embedded into the circuit
     pub leaf_crh_params: <LeafHash as CRHScheme>::Parameters,

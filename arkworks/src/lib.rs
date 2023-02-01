@@ -3,7 +3,7 @@ use crate::common::*;
 
 use ark_ff::Field;
 
-mod constraints;
+pub mod constraints;
 // mod constraints_test;
 
 use ark_crypto_primitives::{

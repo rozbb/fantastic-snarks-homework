@@ -8,7 +8,7 @@ edition = "2018"
 ark-ff = { version = "0.4", default-features = false }
 ark-ec = { version = "0.4", default-features = false }
 ark-ed-on-bls12-381 = { version = "0.4", features = ["r1cs"] }
-ark-bls12-381 = { version = "0.4", default-features = false }
+ark-bls12-381 = { version = "0.4.0" }
 ark-std = { version = "0.4", default-features = false }
 ark-relations = { version = "0.4", default-features = false  }
 
@@ -21,10 +21,13 @@ tracing = { version = "0.1", default-features = false, features = [ "attributes"
 tracing-subscriber = { version = "0.2" }
 rand = "0.8.5"
 
+[dependencies.ark-groth16]
+git = "https://github.com/rozbb/groth16.git"
+rev = "ae6fa28"
+
 [dependencies.ark-crypto-primitives]
-path = "/tmp/crypto-primitives"
-#git = "https://github.com/arkworks-rs/crypto-primitives.git"
-#rev = "4b3bdac"
+git = "https://github.com/arkworks-rs/crypto-primitives.git"
+rev = "4b3bdac"
 default-features = true
 features = [ "r1cs", "crh", "merkle_tree" ]
 

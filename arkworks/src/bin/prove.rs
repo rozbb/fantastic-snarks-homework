@@ -1,11 +1,104 @@
-use ark_crypto_primitives::crh::TwoToOneCRHScheme;
-use ark_crypto_primitives::merkle_tree::{Config, MerkleTree, Path};
+use ark_ff::ToConstraintField;
 
+use ark_bls12_381::Bls12_381;
+use ark_ec::pairing::Pairing;
+use ark_ff::UniformRand;
+use ark_groth16::{
+    create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
+};
 use arkworks_merkle_tree_example::{
-    common::{LeafHash, TwoToOneHash},
-    SimpleMerkleTree,
+    common::{read_from_file, PEDERSEN_PARAMS_FILENAME},
+    constraints::MerkleTreeVerification,
+    MerkleRoot, SimpleMerkleTree,
 };
 
+type E = Bls12_381;
+type F = <E as Pairing>::ScalarField;
+
+/// Generates a Groth16 CRS, proof, and public input for the given merkle tree circuit, tree root,
+/// and claimed-member leaf. Might return `None` if the proof fails (ie if the statement is false)
+fn gen_proof_package(
+    circuit: &MerkleTreeVerification,
+    root: &MerkleRoot,
+    claimed_leaf: &[u8],
+) -> Option<(ark_groth16::ProvingKey<E>, ark_groth16::Proof<E>, Vec<F>)> {
+    let mut rng = rand::thread_rng();
+
+    // Generate the CRS (aka proving key)
+    let crs = generate_random_parameters(circuit.clone(), &mut rng).unwrap();
+    // Create the proof
+    let proof = create_random_proof(circuit.clone(), &crs, &mut rng).ok();
+    // Serialize the public inputs that the verifier will use
+    let public_inputs = [
+        root.to_field_elements().unwrap(),
+        claimed_leaf.to_field_elements().unwrap(),
+    ]
+    .concat();
+
+    // Return everything so long as the proof succeeded
+    proof.map(|p| (crs, p, public_inputs))
+}
+
 fn main() {
-    println!("hello world");
+    let mut rng = rand::thread_rng();
+
+    // Read the hashing params from a file
+    let (leaf_crh_params, two_to_one_crh_params) = read_from_file(PEDERSEN_PARAMS_FILENAME);
+
+    // The leaves of the Merkle tree
+    let leaves = vec![
+        &b"1"[..],
+        &b"2"[..],
+        &b"3"[..],
+        &b"10"[..],
+        &b"9"[..],
+        &b"17"[..],
+        &b"70"[..],
+        &b"45"[..],
+    ];
+
+    // Generate the tree and compute the root
+    let tree =
+        SimpleMerkleTree::new(&leaf_crh_params, &two_to_one_crh_params, leaves.clone()).unwrap();
+    let correct_root = tree.root();
+    // We also make an incorrect root. This should produce an invalid proof
+    let incorrect_root = MerkleRoot::rand(&mut rng);
+
+    // Now generate the proof
+
+    // We'll reveal and prove membership of the 4th item in the tree
+    let idx_to_prove = 4;
+    let claimed_leaf = &leaves[idx_to_prove];
+
+    // Now, let's try to generate an authentication path for the 5th item.
+    let auth_path = tree.generate_proof(idx_to_prove).unwrap();
+
+    let circuit = MerkleTreeVerification {
+        // Constants that the circuit needs
+        leaf_crh_params,
+        two_to_one_crh_params,
+
+        // Public inputs to the circuit
+        root: correct_root,
+        leaf: claimed_leaf.to_vec(),
+
+        // Witness to membership
+        authentication_path: Some(auth_path),
+    };
+
+    // Create a proof package using the correct tree root
+    let (crs, proof, public_inputs) = gen_proof_package(&circuit, &correct_root, claimed_leaf)
+        .expect("failed to make honest proof");
+
+    // Verify the proof package. This should work for the correct root
+    let pvk = prepare_verifying_key(&crs.vk);
+    assert!(verify_proof(&pvk, &proof, &public_inputs).unwrap());
+
+    // Now do the same thing but use the wrong root. This should fail to prove
+    let mut circuit = circuit.clone();
+    circuit.root = incorrect_root;
+    assert!(
+        gen_proof_package(&circuit, &incorrect_root, claimed_leaf).is_none(),
+        "invalid proof should have failed but didn't"
+    );
 }

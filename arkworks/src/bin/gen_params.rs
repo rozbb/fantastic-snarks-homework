@@ -1,14 +1,18 @@
-use arkworks_merkle_tree_example::common::{write_to_file, LeafHash, TwoToOneHash};
+use arkworks_merkle_tree_example::common::{
+    write_to_file, LeafHash, TwoToOneHash, PEDERSEN_PARAMS_FILENAME,
+};
 
 use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
 
 fn main() {
     let mut rng = rand::thread_rng();
 
-    // First, let's sample the public parameters for the hash functions:
+    // First, let's sample the public parameters for the hash functions
     let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
     let two_to_one_crh_params = <TwoToOneHash as TwoToOneCRHScheme>::setup(&mut rng).unwrap();
 
-    write_to_file("leaf_crh_params.bin", &leaf_crh_params);
-    write_to_file("parent_crh_params.bin", &two_to_one_crh_params);
+    write_to_file(
+        PEDERSEN_PARAMS_FILENAME,
+        &(leaf_crh_params, two_to_one_crh_params),
+    );
 }
