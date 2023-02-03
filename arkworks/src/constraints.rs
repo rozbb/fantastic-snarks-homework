@@ -61,11 +61,8 @@ impl ConstraintSynthesizer<ConstraintF> for MerkleTreeVerification {
         cs: ConstraintSystemRef<ConstraintF>,
     ) -> Result<(), SynthesisError> {
         // First, we allocate the public inputs
-        let root =
-            <RootVar as AllocVar<MerkleRoot, _>>::new_input(
-                ns!(cs, "root_var"),
-                || Ok(&self.root),
-            )?;
+        let root_var =
+            <RootVar as AllocVar<MerkleRoot, _>>::new_input(ns!(cs, "root"), || Ok(&self.root))?;
 
         // Then, we allocate the public parameters as constants:
         let leaf_crh_params = LeafHashParamsVar::new_constant(cs.clone(), &self.leaf_crh_params)?;
@@ -83,7 +80,6 @@ impl ConstraintSynthesizer<ConstraintF> for MerkleTreeVerification {
             let note_bytes = note_var.to_bytes()?;
             let hash = LeafHashGadget::evaluate(&leaf_crh_params, &note_bytes)?;
             hash.to_bytes()?
-            //<MerkleConfigGadget as ConfigGadget<_, _>>::LeafInnerConverter::convert(hash)?
         };
         note_com_var.enforce_equal(&note_hash)?;
 
@@ -92,14 +88,14 @@ impl ConstraintSynthesizer<ConstraintF> for MerkleTreeVerification {
             Ok(self.auth_path.as_ref().unwrap())
         })?;
 
-        // Now, we have to check membership. How do we do that?
-        // Hint: look at https://github.com/arkworks-rs/crypto-primitives/blob/6be606259eab0aec010015e2cfd45e4f134cd9bf/src/merkle_tree/constraints.rs#L135
+        // Recompute the root from the given path
+        let leaf_var = note_hash;
+        let computed_root =
+            path.calculate_root(&leaf_crh_params, &two_to_one_crh_params, &leaf_var)?;
+        // Ensure that the computed root equals the claimed public root
+        computed_root.enforce_equal(&root_var)?;
 
-        // TODO: FILL IN THE BLANK!
-        // let is_member = XYZ
-        //
-        // is_member.enforce_equal(&Boolean::TRUE)?;
-
+        // All good
         Ok(())
     }
 }
@@ -107,14 +103,16 @@ impl ConstraintSynthesizer<ConstraintF> for MerkleTreeVerification {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::SimpleMerkleTree;
 
     use ark_crypto_primitives::merkle_tree::{Config, DigestConverter};
+    use ark_ff::UniformRand;
     use ark_relations::r1cs::{ConstraintLayer, ConstraintSystem, TracingMode};
+    use rand::RngCore;
     use tracing_subscriber::layer::SubscriberExt;
 
-    // Run this test via `cargo test --release test_merkle_tree`.
     #[test]
-    fn merkle_tree_constraints_correctness() {
+    fn correctness_and_soundness() {
         // Let's set up an RNG for use within tests. Note that this is *not* safe
         // for any production use.
         let mut rng = ark_std::test_rng();
@@ -123,145 +121,84 @@ mod test {
         let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
         let two_to_one_crh_params = <TwoToOneHash as TwoToOneCRHScheme>::setup(&mut rng).unwrap();
 
-        // Next, let's construct our tree. The i-th entry in the vec! is the i-th leaf
-        let tree = crate::SimpleMerkleTree::new(
-            &leaf_crh_params,
-            &two_to_one_crh_params,
-            vec![
-                &b"1"[..],
-                &b"2"[..],
-                &b"3"[..],
-                &b"10"[..],
-                &b"9"[..],
-                &b"17"[..],
-                &b"70"[..],
-                &b"45"[..],
-            ],
-        )
-        .unwrap();
+        // Make 7 random leaves
+        let mut leaves: Vec<_> = core::iter::repeat_with(|| {
+            let mut leaf_buf: Leaf = [0u8; 64];
+            rng.fill_bytes(&mut leaf_buf);
+            leaf_buf
+        })
+        .take(7)
+        .collect();
+        // Create a note and make the last leaf a commitment to that note
+        let note = Note::rand(&mut rng);
+        let note_com = note.commit(&leaf_crh_params);
+        leaves.push(note_com);
 
-        // Now generate
-        let auth_path = tree.generate_proof(4).unwrap();
+        // Generate the tree and compute the root
+        let tree = SimpleMerkleTree::new(&leaf_crh_params, &two_to_one_crh_params, leaves.clone())
+            .unwrap();
+        let correct_root = tree.root();
 
-        // First, let's get the root we want to verify against:
-        let root = tree.root();
+        // Now generate the proof
 
-        // The value of the leaf that's allegedly in the tree
-        let claimed_leaf_hash = b"9".to_vec();
+        // We'll reveal and prove membership of the 7th item in the tree
+        let idx_to_prove = 7;
+        let claimed_leaf = &leaves[idx_to_prove];
+
+        // Now, let's try to generate an authentication path for the 5th item.
+        let auth_path = tree.generate_proof(idx_to_prove).unwrap();
 
         let circuit = MerkleTreeVerification {
-            // constants
+            // Constants that the circuit needs
             leaf_crh_params,
             two_to_one_crh_params,
 
-            // public inputs
-            root,
-            leaf: claimed_leaf_hash,
+            // Public inputs to the circuit
+            root: correct_root,
+            leaf: claimed_leaf.to_vec(),
 
-            // witness
+            // Witness to membership
             auth_path: Some(auth_path),
+            note_opening: note,
         };
-        // First, some boilerplat that helps with debugging
-        let mut layer = ConstraintLayer::default();
-        layer.mode = TracingMode::OnlyConstraints;
-        let subscriber = tracing_subscriber::Registry::default().with(layer);
-        let _guard = tracing::subscriber::set_default(subscriber);
 
-        // Next, let's make the circuit!
-        let cs = ConstraintSystem::new_ref();
-        circuit.generate_constraints(cs.clone()).unwrap();
-        // Let's check whether the constraint system is satisfied
-        let is_satisfied = cs.is_satisfied().unwrap();
-        if !is_satisfied {
-            // If it isn't, find out the offending constraint.
-            println!("{:?}", cs.which_is_unsatisfied());
-        }
-        assert!(is_satisfied);
-    }
-
-    // Run this test via `cargo test --release test_merkle_tree_constraints_soundness`.
-    // This tests that a given invalid authentication path will fail.
-    #[test]
-    fn merkle_tree_constraints_soundness() {
-        // Let's set up an RNG for use within tests. Note that this is *not* safe
-        // for any production use.
-        let mut rng = ark_std::test_rng();
-
-        // First, let's sample the public parameters for the hash functions:
-        let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
-        let two_to_one_crh_params = <TwoToOneHash as TwoToOneCRHScheme>::setup(&mut rng).unwrap();
-
-        // Next, let's construct our tree.
-        // This follows the API in https://github.com/arkworks-rs/crypto-primitives/blob/6be606259eab0aec010015e2cfd45e4f134cd9bf/src/merkle_tree/mod.rs#L156
-        let tree = crate::SimpleMerkleTree::new(
-            &leaf_crh_params,
-            &two_to_one_crh_params,
-            vec![
-                &b"1"[..],
-                &b"2"[..],
-                &b"3"[..],
-                &b"10"[..],
-                &b"9"[..],
-                &b"17"[..],
-                &b"70"[..],
-                &b"45"[..],
-            ], // the i-th entry is the i-th leaf.
-        )
-        .unwrap();
-
-        // We just mutate the first leaf
-        let second_tree = crate::SimpleMerkleTree::new(
-            &leaf_crh_params,
-            &two_to_one_crh_params,
-            vec![
-                &b"4"[..],
-                &b"2"[..],
-                &b"3"[..],
-                &b"10"[..],
-                &b"9"[..],
-                &b"17"[..],
-                &b"70"[..],
-                &b"45"[..],
-            ], // the i-th entry is the i-th leaf.
-        )
-        .unwrap();
-
-        // Now, let's try to generate a membership proof for the 5th item, i.e. 9.
-        let proof = tree.generate_proof(4).unwrap(); // we're 0-indexing!
-
-        // But, let's get the root we want to verify against:
-        let wrong_root = second_tree.root();
-
-        // The value of the leaf that's allegedly in the tree
-        let claimed_leaf_hash = LeafHash::evaluate(&leaf_crh_params, &b"9"[..]).unwrap();
-        let claimed_leaf_hash_bytes =
-            <MerkleConfig as Config>::LeafInnerDigestConverter::convert(claimed_leaf_hash).unwrap();
-
-        // Build the circuit. We'll use this for verification
-        let circuit = MerkleTreeVerification {
-            // constants
-            leaf_crh_params,
-            two_to_one_crh_params,
-
-            // public inputs
-            root: wrong_root,
-            leaf: claimed_leaf_hash_bytes,
-
-            // witness
-            auth_path: Some(proof),
-        };
         // First, some boilerplate that helps with debugging
         let mut layer = ConstraintLayer::default();
         layer.mode = TracingMode::OnlyConstraints;
         let subscriber = tracing_subscriber::Registry::default().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
-        // Next, let's make the constraint system!
+        // Make a fresh constraint system and run the circuit
         let cs = ConstraintSystem::new_ref();
-        circuit.generate_constraints(cs.clone()).unwrap();
-        // Let's check whether the constraint system is satisfied
-        let is_satisfied = cs.is_satisfied().unwrap();
-        // We expect this to fail!
-        assert!(!is_satisfied);
+        circuit.clone().generate_constraints(cs.clone()).unwrap();
+        // This execution should succeed
+        assert!(
+            cs.is_satisfied().unwrap(),
+            "circuit correctness check failed"
+        );
+
+        // Now modify the circuit to have a random note opening. This should make the proof fail.
+        let mut bad_note_circuit = circuit.clone();
+        bad_note_circuit.note_opening = Note::rand(&mut rng);
+        // Run the circuit
+        let cs = ConstraintSystem::new_ref();
+        bad_note_circuit.generate_constraints(cs.clone()).unwrap();
+        // One of the enforce_equals should fail
+        assert!(
+            !cs.is_satisfied().unwrap(),
+            "circuit should not be satisfied for any random note"
+        );
+
+        // Now modify the circuit to have a random root. This should make the proof fail.
+        let mut bad_root_circuit = circuit.clone();
+        bad_root_circuit.root = MerkleRoot::rand(&mut rng);
+        // Run the circuit
+        let cs = ConstraintSystem::new_ref();
+        bad_root_circuit.generate_constraints(cs.clone()).unwrap();
+        // One of the enforce_equals should fail
+        assert!(
+            !cs.is_satisfied().unwrap(),
+            "circuit should not be satisfied for any random merkle root"
+        );
     }
 }
