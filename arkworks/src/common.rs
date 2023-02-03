@@ -1,32 +1,143 @@
-use ark_crypto_primitives::crh::{
-    constraints::{CRHSchemeGadget, TwoToOneCRHSchemeGadget},
-    pedersen,
+use crate::MerkleConfig;
+
+use core::borrow::Borrow;
+
+use ark_bls12_381::Fr as F;
+use ark_crypto_primitives::{
+    crh::{
+        constraints::{CRHSchemeGadget, TwoToOneCRHSchemeGadget},
+        pedersen, CRHScheme,
+    },
+    merkle_tree::{Config, DigestConverter},
 };
 use ark_ed_on_bls12_381::{constraints::EdwardsVar as JubjubVar, EdwardsProjective as Jubjub};
+use ark_ff::UniformRand;
+use ark_r1cs_std::{
+    alloc::{AllocVar, AllocationMode},
+    bits::{uint8::UInt8, ToBytesGadget},
+    fields::fp::FpVar,
+};
+use ark_relations::{
+    ns,
+    r1cs::{Namespace, SynthesisError},
+};
 use ark_serialize::CanonicalSerialize;
+use rand::Rng;
 
+type FV = FpVar<F>;
+
+pub type Leaf = [u8; 64];
+
+/// A spendable "note". The leaves in our tree are note commitments.
+#[derive(Clone, CanonicalSerialize)]
+pub struct Note {
+    nonce: F,
+    amount: F,
+    nullifier: F,
+}
+
+impl Note {
+    /// Commits to `(self.amount, self.nullifier)` using `self.nonce` as the nonce. Concretely,
+    /// this computes `Hash(nonce || amount || nulifier)`
+    pub fn commit(&self, leaf_crh_params: &<LeafHash as CRHScheme>::Parameters) -> Leaf {
+        let serialized_self = {
+            let mut buf = Vec::new();
+            self.serialize_uncompressed(&mut buf).unwrap();
+            buf
+        };
+        let claimed_leaf_hash =
+            LeafHash::evaluate(&leaf_crh_params, serialized_self.as_slice()).unwrap();
+
+        <MerkleConfig as Config>::LeafInnerDigestConverter::convert(claimed_leaf_hash)
+            .unwrap()
+            .try_into()
+            .unwrap()
+    }
+}
+
+// Helpful for testing. This lets you generate a random Note.
+impl UniformRand for Note {
+    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Note {
+            nonce: F::rand(rng),
+            amount: F::rand(rng),
+            nullifier: F::rand(rng),
+        }
+    }
+}
+
+/// A spendable "note". The leaves in our tree are note commitments.
+pub struct NoteVar {
+    amount: FV,
+    nullifier: FV,
+    nonce: FV,
+}
+
+impl AllocVar<Note, F> for NoteVar {
+    fn new_variable<T: Borrow<Note>>(
+        cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let cs = cs.into().cs();
+        let note = f();
+        let note_ref = note.as_ref().map(|n| n.borrow());
+
+        let nonce = FpVar::new_variable(
+            ns!(cs, "nonce"),
+            || note_ref.map(|n| n.nonce).map_err(Clone::clone),
+            mode,
+        )?;
+        let amount = FpVar::new_variable(
+            ns!(cs, "amt"),
+            || note_ref.map(|n| n.amount).map_err(Clone::clone),
+            mode,
+        )?;
+        let nullifier = FpVar::new_variable(
+            ns!(cs, "nul"),
+            || note_ref.map(|n| n.nullifier).map_err(Clone::clone),
+            mode,
+        )?;
+
+        Ok(NoteVar {
+            amount,
+            nullifier,
+            nonce,
+        })
+    }
+}
+
+impl ToBytesGadget<F> for NoteVar {
+    fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
+        Ok([
+            self.nonce.to_bytes()?,
+            self.amount.to_bytes()?,
+            self.nullifier.to_bytes()?,
+        ]
+        .concat())
+    }
+}
+
+pub type LeafHash = pedersen::CRH<Jubjub, LeafWindow>;
 pub type TwoToOneHash = pedersen::TwoToOneCRH<Jubjub, TwoToOneWindow>;
+
+// We use the leaf hash for note commitments as well. So it needs to handle inputs of 256*3-bits,
+// or 96 bytes
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct TwoToOneWindow;
+pub struct LeafWindow;
+impl pedersen::Window for LeafWindow {
+    const WINDOW_SIZE: usize = 6;
+    const NUM_WINDOWS: usize = 128;
+}
 
 // `WINDOW_SIZE * NUM_WINDOWS` > 2 * 512 bits = enough for hashing two outputs. Affine curve points
 // are 512 bits because there currently isn't a DigestConverterGadget that knows how to do
 // compressed curve points.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct TwoToOneWindow;
 impl pedersen::Window for TwoToOneWindow {
     const WINDOW_SIZE: usize = 8;
     const NUM_WINDOWS: usize = 144;
-}
-
-pub type LeafHash = pedersen::CRH<Jubjub, LeafWindow>;
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct LeafWindow;
-
-// We let leaves be bytestrings of length at most 16, i.e., bitlength at most 128. Thus we need
-// WINDOW_SIZE * NUM_WINDOWS to be at least 128.
-impl pedersen::Window for LeafWindow {
-    const WINDOW_SIZE: usize = 1;
-    const NUM_WINDOWS: usize = 128;
 }
 
 pub type TwoToOneHashGadget =

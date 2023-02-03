@@ -1,6 +1,6 @@
 use arkworks_merkle_tree_example::{
     common::{
-        read_from_file, write_to_file, PEDERSEN_PARAMS_FILENAME, TESTCASE_BAD_FILENAME,
+        read_from_file, write_to_file, Leaf, Note, PEDERSEN_PARAMS_FILENAME, TESTCASE_BAD_FILENAME,
         TESTCASE_GOOD_FILENAME,
     },
     constraints::MerkleTreeVerification,
@@ -14,6 +14,7 @@ use ark_ff::UniformRand;
 use ark_groth16::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
 };
+use rand::RngCore;
 
 type E = Bls12_381;
 type F = <E as Pairing>::ScalarField;
@@ -48,17 +49,18 @@ fn main() {
     // Read the hashing params from a file
     let (leaf_crh_params, two_to_one_crh_params) = read_from_file(PEDERSEN_PARAMS_FILENAME);
 
-    // The leaves of the Merkle tree. This can be whatever you want
-    let leaves = vec![
-        &b"1"[..],
-        &b"2"[..],
-        &b"3"[..],
-        &b"10"[..],
-        &b"9"[..],
-        &b"17"[..],
-        &b"70"[..],
-        &b"45"[..],
-    ];
+    // Make 7 random leaves
+    let mut leaves: Vec<_> = core::iter::repeat_with(|| {
+        let mut leaf_buf: Leaf = [0u8; 64];
+        rng.fill_bytes(&mut leaf_buf);
+        leaf_buf
+    })
+    .take(7)
+    .collect();
+    // Create a note and make the last leaf a commitment to that note
+    let note = Note::rand(&mut rng);
+    let note_com = note.commit(&leaf_crh_params);
+    leaves.push(note_com);
 
     // Generate the tree and compute the root
     let tree =
@@ -69,8 +71,8 @@ fn main() {
 
     // Now generate the proof
 
-    // We'll reveal and prove membership of the 5th item in the tree
-    let idx_to_prove = 4;
+    // We'll reveal and prove membership of the 7th item in the tree
+    let idx_to_prove = 7;
     let claimed_leaf = &leaves[idx_to_prove];
 
     // Now, let's try to generate an authentication path for the 5th item.
@@ -86,7 +88,8 @@ fn main() {
         leaf: claimed_leaf.to_vec(),
 
         // Witness to membership
-        authentication_path: Some(auth_path),
+        auth_path: Some(auth_path),
+        note_opening: note,
     };
 
     // Create a proof package using the correct tree root. That is, generate the Groth16 CRS, the
