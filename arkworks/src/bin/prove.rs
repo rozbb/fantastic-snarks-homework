@@ -1,15 +1,18 @@
-use ark_ff::ToConstraintField;
+use arkworks_merkle_tree_example::{
+    common::{
+        read_from_file, write_to_file, PEDERSEN_PARAMS_FILENAME, TESTCASE_BAD_FILENAME,
+        TESTCASE_GOOD_FILENAME,
+    },
+    constraints::MerkleTreeVerification,
+    MerkleRoot, SimpleMerkleTree,
+};
 
 use ark_bls12_381::Bls12_381;
 use ark_ec::pairing::Pairing;
+use ark_ff::ToConstraintField;
 use ark_ff::UniformRand;
 use ark_groth16::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-};
-use arkworks_merkle_tree_example::{
-    common::{read_from_file, PEDERSEN_PARAMS_FILENAME},
-    constraints::MerkleTreeVerification,
-    MerkleRoot, SimpleMerkleTree,
 };
 
 type E = Bls12_381;
@@ -45,7 +48,7 @@ fn main() {
     // Read the hashing params from a file
     let (leaf_crh_params, two_to_one_crh_params) = read_from_file(PEDERSEN_PARAMS_FILENAME);
 
-    // The leaves of the Merkle tree
+    // The leaves of the Merkle tree. This can be whatever you want
     let leaves = vec![
         &b"1"[..],
         &b"2"[..],
@@ -66,7 +69,7 @@ fn main() {
 
     // Now generate the proof
 
-    // We'll reveal and prove membership of the 4th item in the tree
+    // We'll reveal and prove membership of the 5th item in the tree
     let idx_to_prove = 4;
     let claimed_leaf = &leaves[idx_to_prove];
 
@@ -86,9 +89,11 @@ fn main() {
         authentication_path: Some(auth_path),
     };
 
-    // Create a proof package using the correct tree root
-    let (crs, proof, public_inputs) = gen_proof_package(&circuit, &correct_root, claimed_leaf)
+    // Create a proof package using the correct tree root. That is, generate the Groth16 CRS, the
+    // proof with respect to that CRS, and the public inputs to that proof.
+    let proof_package = gen_proof_package(&circuit, &correct_root, claimed_leaf)
         .expect("failed to make honest proof");
+    let (crs, proof, public_inputs) = proof_package.clone();
 
     // Verify the proof package. This should work for the correct root
     let pvk = prepare_verifying_key(&crs.vk);
@@ -101,4 +106,7 @@ fn main() {
         gen_proof_package(&circuit, &incorrect_root, claimed_leaf).is_none(),
         "invalid proof should have failed but didn't"
     );
+
+    // Write everything to disk
+    //write_to_file(TESTCASE_GOOD_FILENAME, &(
 }

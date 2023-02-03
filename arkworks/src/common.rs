@@ -49,8 +49,8 @@ use std::{
 };
 
 pub const PEDERSEN_PARAMS_FILENAME: &str = "pedersen_params.bin";
-pub const PEDERSEN_LEAF_PARAMS_FILENAME: &str = "pedersen_leaf_params.bin";
-pub const PEDERSEN_PARENT_PARAMS_FILENAME: &str = "pedersen_parent_params.bin";
+pub const TESTCASE_GOOD_FILENAME: &str = "proof_package_good.bin";
+pub const TESTCASE_BAD_FILENAME: &str = "proof_package_bad.bin";
 
 pub fn write_to_file<S: CanonicalSerialize>(path_str: &str, data: &S) {
     // Convert string to FS path
