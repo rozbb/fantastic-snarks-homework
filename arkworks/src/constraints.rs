@@ -100,7 +100,7 @@ impl ConstraintSynthesizer<F> for BurnCircuit {
         // We prove membership of the nonce commitment in the Merkle tree. Concretely, we use the
         // leaf from above and path_var to recompute the Merkle root. We then assert that this root
         // is equal to the publicly known root.
-        let leaf_var = computed_note_com_var;
+        let leaf_var = claimed_note_com_var;
         let computed_root_var =
             path.calculate_root(&leaf_crh_params, &two_to_one_crh_params, &leaf_var)?;
         computed_root_var.enforce_equal(&claimed_root_var)?;
@@ -128,15 +128,10 @@ mod test {
     use rand::RngCore;
     use tracing_subscriber::layer::SubscriberExt;
 
-    #[test]
-    fn correctness_and_soundness() {
-        //
-        // Setup
-        //
-
+    // Sets up a legitimate burn circuit
+    fn setup(mut rng: impl RngCore) -> BurnCircuit {
         // Let's set up an RNG for use within tests. Note that this is NOTE safe for any production
         // use
-        let mut rng = ark_std::test_rng();
 
         // First, let's sample the public parameters for the hash functions
         let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
@@ -178,7 +173,7 @@ mod test {
         let auth_path = tree.generate_proof(idx_to_prove).unwrap();
 
         // We have everything we need. Build the circuit
-        let circuit = BurnCircuit {
+        BurnCircuit {
             // Constants for hashing
             leaf_crh_params,
             two_to_one_crh_params,
@@ -192,51 +187,65 @@ mod test {
             auth_path: Some(auth_path),
             note_amount: note.amount,
             note_nonce,
-        };
+        }
+    }
 
-        //
-        // Proof execution
-        //
+    // Correctness test: Make a fresh constraint system and run the circuit.
+    #[test]
+    fn correctness() {
+        let mut rng = ark_std::test_rng();
+        let circuit = setup(&mut rng);
 
-        // First, some boilerplate that helps with debugging
-        let mut layer = ConstraintLayer::default();
-        layer.mode = TracingMode::OnlyConstraints;
-        let subscriber = tracing_subscriber::Registry::default().with(layer);
-        let _guard = tracing::subscriber::set_default(subscriber);
-
-        // Correctness test: Make a fresh constraint system and run the circuit.
+        // Run the circuit on a fresh constraint system
         let cs = ConstraintSystem::new_ref();
-        circuit.clone().generate_constraints(cs.clone()).unwrap();
-        // This execution should succeed
+        circuit.generate_constraints(cs.clone()).unwrap();
+
+        // The constraints should be satisfied. That is, the valid circuit should verify.
         assert!(
             cs.is_satisfied().unwrap(),
             "circuit correctness check failed; a valid circuit did not succeed"
         );
+    }
 
-        // Soundness test #1: Modify the circuit to have a random amount. This should make the
-        // proof fail.
-        let mut bad_note_circuit = circuit.clone();
+    // Note soundness test: Modify the circuit to have a random amount. This should make the
+    // proof fail, since the computed commitment up longer matches up with the claimed commitment.
+    #[test]
+    fn note_soundness() {
+        // Make a new circuit and maul its note amount
+        let mut rng = ark_std::test_rng();
+        let mut bad_note_circuit = setup(&mut rng);
         bad_note_circuit.note_amount = F::rand(&mut rng);
-        // Run the circuit
+
+        // Run the circuit on a fresh constraint system
         let cs = ConstraintSystem::new_ref();
         bad_note_circuit.generate_constraints(cs.clone()).unwrap();
-        // One of the enforce_equals should fail
+
+        // At least one constraint should not be satisfied. That is, the invalid circuit should
+        // fail to verify.
         assert!(
             !cs.is_satisfied().unwrap(),
             "circuit should not be satisfied after changing the note amount"
         );
+    }
 
-        // Soundness test #2: Modify the circuit to have a random root. This should also make the
-        // proof fail.
-        let mut bad_root_circuit = circuit.clone();
+    // Tree soundness test: Modify the circuit to have a random Merkle tree root. This should make
+    // the proof fail, since the computed root up longer matches up with the claimed root.
+    #[test]
+    fn tree_soundness() {
+        // Make a new circuit and maul its Merkle root
+        let mut rng = ark_std::test_rng();
+        let mut bad_root_circuit = setup(&mut rng);
         bad_root_circuit.root = MerkleRoot::rand(&mut rng);
-        // Run the circuit
+
+        // Run the circuit on a fresh constraint system
         let cs = ConstraintSystem::new_ref();
         bad_root_circuit.generate_constraints(cs.clone()).unwrap();
-        // One of the enforce_equals should fail
+
+        // At least one constraint should not be satisfied. That is, the invalid circuit should
+        // fail to verify.
         assert!(
             !cs.is_satisfied().unwrap(),
-            "circuit should not be satisfied after changing the merkle root"
+            "circuit should not be satisfied after changing the note amount"
         );
     }
 }
