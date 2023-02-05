@@ -24,29 +24,30 @@ use ark_relations::{
 use ark_serialize::CanonicalSerialize;
 use rand::Rng;
 
-type FV = FpVar<F>;
-
 pub type Leaf = [u8; 64];
 
 /// A spendable "note". The leaves in our tree are note commitments.
 #[derive(Clone, CanonicalSerialize)]
 pub struct Note {
-    nonce: F,
-    amount: F,
-    nullifier: F,
+    pub amount: F,
+    pub nullifier: F,
 }
 
 impl Note {
-    /// Commits to `(self.amount, self.nullifier)` using `self.nonce` as the nonce. Concretely,
-    /// this computes `Hash(nonce || amount || nulifier)`
-    pub fn commit(&self, leaf_crh_params: &<LeafHash as CRHScheme>::Parameters) -> Leaf {
-        let serialized_self = {
-            let mut buf = Vec::new();
-            self.serialize_uncompressed(&mut buf).unwrap();
-            buf
-        };
-        let claimed_leaf_hash =
-            LeafHash::evaluate(&leaf_crh_params, serialized_self.as_slice()).unwrap();
+    /// Commits to `(self.amount, self.nullifier)` using `nonce` as the nonce. Concretely, this
+    /// computes `Hash(nonce || amount || nulifier)`
+    pub fn commit(&self, leaf_crh_params: &<LeafHash as CRHScheme>::Parameters, nonce: &F) -> Leaf {
+        // This will be the buffer we feed into the hash function
+        let mut buf = Vec::new();
+
+        // Serialize the nonce
+        nonce.serialize_uncompressed(&mut buf).unwrap();
+
+        // Now serialize the note
+        self.serialize_uncompressed(&mut buf).unwrap();
+
+        // Now compute Hash(nonce || amount || nulifier)
+        let claimed_leaf_hash = LeafHash::evaluate(&leaf_crh_params, buf.as_slice()).unwrap();
 
         <MerkleConfig as Config>::LeafInnerDigestConverter::convert(claimed_leaf_hash)
             .unwrap()
@@ -59,62 +60,9 @@ impl Note {
 impl UniformRand for Note {
     fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
         Note {
-            nonce: F::rand(rng),
             amount: F::rand(rng),
             nullifier: F::rand(rng),
         }
-    }
-}
-
-/// A spendable "note". The leaves in our tree are note commitments.
-pub struct NoteVar {
-    amount: FV,
-    nullifier: FV,
-    nonce: FV,
-}
-
-impl AllocVar<Note, F> for NoteVar {
-    fn new_variable<T: Borrow<Note>>(
-        cs: impl Into<Namespace<F>>,
-        f: impl FnOnce() -> Result<T, SynthesisError>,
-        mode: AllocationMode,
-    ) -> Result<Self, SynthesisError> {
-        let cs = cs.into().cs();
-        let note = f();
-        let note_ref = note.as_ref().map(|n| n.borrow());
-
-        let nonce = FpVar::new_variable(
-            ns!(cs, "nonce"),
-            || note_ref.map(|n| n.nonce).map_err(Clone::clone),
-            mode,
-        )?;
-        let amount = FpVar::new_variable(
-            ns!(cs, "amt"),
-            || note_ref.map(|n| n.amount).map_err(Clone::clone),
-            mode,
-        )?;
-        let nullifier = FpVar::new_variable(
-            ns!(cs, "nul"),
-            || note_ref.map(|n| n.nullifier).map_err(Clone::clone),
-            mode,
-        )?;
-
-        Ok(NoteVar {
-            amount,
-            nullifier,
-            nonce,
-        })
-    }
-}
-
-impl ToBytesGadget<F> for NoteVar {
-    fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
-        Ok([
-            self.nonce.to_bytes()?,
-            self.amount.to_bytes()?,
-            self.nullifier.to_bytes()?,
-        ]
-        .concat())
     }
 }
 

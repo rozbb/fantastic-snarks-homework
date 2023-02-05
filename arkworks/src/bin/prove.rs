@@ -24,6 +24,7 @@ type F = <E as Pairing>::ScalarField;
 fn gen_proof_package(
     circuit: &MerkleTreeVerification,
     root: &MerkleRoot,
+    nullifier: &F,
     claimed_leaf: &[u8],
 ) -> Option<(ark_groth16::ProvingKey<E>, ark_groth16::Proof<E>, Vec<F>)> {
     let mut rng = rand::thread_rng();
@@ -35,6 +36,7 @@ fn gen_proof_package(
     // Serialize the public inputs that the verifier will use
     let public_inputs = [
         root.to_field_elements().unwrap(),
+        nullifier.to_field_elements().unwrap(),
         claimed_leaf.to_field_elements().unwrap(),
     ]
     .concat();
@@ -59,7 +61,8 @@ fn main() {
     .collect();
     // Create a note and make the last leaf a commitment to that note
     let note = Note::rand(&mut rng);
-    let note_com = note.commit(&leaf_crh_params);
+    let note_nonce = F::rand(&mut rng);
+    let note_com = note.commit(&leaf_crh_params, &note_nonce);
     leaves.push(note_com);
 
     // Generate the tree and compute the root
@@ -86,28 +89,37 @@ fn main() {
         // Public inputs to the circuit
         root: correct_root,
         leaf: claimed_leaf.to_vec(),
+        note_nullifier: note.nullifier,
 
         // Witness to membership
         auth_path: Some(auth_path),
-        note_opening: note,
+        // Commitment opening details
+        note_nonce,
+        note_amount: note.amount,
     };
 
     // Create a proof package using the correct tree root. That is, generate the Groth16 CRS, the
     // proof with respect to that CRS, and the public inputs to that proof.
-    let proof_package = gen_proof_package(&circuit, &correct_root, claimed_leaf)
+    let proof_package = gen_proof_package(&circuit, &correct_root, &note.nullifier, claimed_leaf)
         .expect("failed to make honest proof");
     let (crs, proof, public_inputs) = proof_package.clone();
 
     // Verify the proof package. This should work for the correct root
     let pvk = prepare_verifying_key(&crs.vk);
-    assert!(verify_proof(&pvk, &proof, &public_inputs).unwrap());
+    assert!(
+        verify_proof(&pvk, &proof, &public_inputs).unwrap(),
+        "honest proof failed to verify"
+    );
 
     // Now do the same thing but use the wrong root. This should fail to prove
     let mut circuit = circuit.clone();
     circuit.root = incorrect_root;
+    let proof_package = gen_proof_package(&circuit, &incorrect_root, &note.nullifier, claimed_leaf)
+        .expect("failed to make an incorrect proof");
+    let (_, proof, public_inputs) = proof_package.clone();
     assert!(
-        gen_proof_package(&circuit, &incorrect_root, claimed_leaf).is_none(),
-        "invalid proof should have failed but didn't"
+        !verify_proof(&pvk, &proof, &public_inputs).unwrap(),
+        "invalid proof succeeded at verification"
     );
 
     // Write everything to disk
