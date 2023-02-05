@@ -36,20 +36,20 @@ pub type MerkleRoot = <TwoToOneHash as TwoToOneCRHScheme>::Output;
 /// A membership proof for a given account.
 pub type SimplePath = Path<MerkleConfig>;
 
-// Run this test via `cargo test --release test_merkle_tree`.
+// This is a basic functionality test of the native Merkle tree. This does no ZK operations at all.
+// It just checks that you can prove membership in a tree by giving a verifier the Merkle
+// authentication path.
 #[test]
 fn test_merkle_tree() {
     use ark_crypto_primitives::crh::CRHScheme;
-    // Let's set up an RNG for use within tests. Note that this is *not* safe
-    // for any production use.
+    // Let's set up an RNG for use within tests. Note that this is NOT safe for any production use.
     let mut rng = ark_std::test_rng();
 
-    // First, let's sample the public parameters for the hash functions:
+    // First, sample the public parameters for the hash functions:
     let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
     let two_to_one_crh_params = <TwoToOneHash as TwoToOneCRHScheme>::setup(&mut rng).unwrap();
 
-    // Next, let's construct our tree.
-    // This follows the API in https://github.com/arkworks-rs/crypto-primitives/blob/6be606259eab0aec010015e2cfd45e4f134cd9bf/src/merkle_tree/mod.rs#L156
+    // Construct a Merkle tree with 8 leaves
     let tree = SimpleMerkleTree::new(
         &leaf_crh_params,
         &two_to_one_crh_params,
@@ -62,26 +62,28 @@ fn test_merkle_tree() {
             &b"17"[..],
             &b"70"[..],
             &b"45"[..],
-        ], // the i-th entry is the i-th leaf.
+        ],
     )
     .unwrap();
 
-    // Now, let's try to generate a membership proof for the 5th item.
-    let proof = tree.generate_proof(4).unwrap(); // we're 0-indexing!
-                                                 // This should be a proof for the membership of a leaf with value 9. Let's check that!
+    // Generate a membership proof for the 5th item.
+    let proof = tree.generate_proof(4).unwrap();
 
-    // First, let's get the root we want to verify against:
+    //
+    // Verification
+    //
+
+    // Get the root we want to verify against
     let root = tree.root();
-    // The value of the leaf that's allegedly in the tree
+    // Get the value of the leaf that's allegedly in the tree
     let claimed_leaf = &b"9"[..];
-    // Next, let's verify the proof!
-    let result = proof
+    // Verify the proof
+    assert!(proof
         .verify(
             &leaf_crh_params,
             &two_to_one_crh_params,
             &root,
             claimed_leaf,
         )
-        .unwrap();
-    assert!(result);
+        .unwrap());
 }

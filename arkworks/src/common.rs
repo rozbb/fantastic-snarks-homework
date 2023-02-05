@@ -93,12 +93,9 @@ pub type TwoToOneHashGadget =
 
 pub type LeafHashGadget = pedersen::constraints::CRHGadget<Jubjub, JubjubVar, LeafWindow>;
 
-pub type LeafHashParamsVar =
-    <LeafHashGadget as CRHSchemeGadget<LeafHash, ConstraintF>>::ParametersVar;
+pub type LeafHashParamsVar = <LeafHashGadget as CRHSchemeGadget<LeafHash, F>>::ParametersVar;
 pub type TwoToOneHashParamsVar =
-    <TwoToOneHashGadget as TwoToOneCRHSchemeGadget<TwoToOneHash, ConstraintF>>::ParametersVar;
-
-pub type ConstraintF = ark_ed_on_bls12_381::Fq;
+    <TwoToOneHashGadget as TwoToOneCRHSchemeGadget<TwoToOneHash, F>>::ParametersVar;
 
 use ark_serialize::CanonicalDeserialize;
 use std::{

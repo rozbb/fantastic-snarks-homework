@@ -50,3 +50,24 @@ We strongly encourage you to use an IDE for this project. Whatever IDE you pick 
 Once we've written our path-checking constraints, we have to check that the resulting constraint system satisfies two properties: that it accepts a valid membership path, and that it rejects an invalid path. We perform these checks via two tests: `merkle_tree_constraints_correctness` and `merkle_tree_constraints_soundness`. Go ahead and look at those for an example of how to test constraint systems in practice.
 
 To run tests, use `cargo test`
+
+ZK BURN
+Burn a note. Can't burn it twice
+
+
+what is a circuit
+constant
+public input
+private input ("witnesses")
+
+
+* WHAT IS A COMMITMENT
+* WHAT IS A MERKLE TREE
+    * WHAT IS A MERKLE AUTHENTICATION PATH
+
+
+# Assignments
+
+1. Fill in the details in X
+2. Make a version of a ZK burn that also reveals the amount in your note
+3. Why is the merkle authentication path private??

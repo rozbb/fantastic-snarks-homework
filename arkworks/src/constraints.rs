@@ -17,44 +17,52 @@ use ark_relations::{
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, Namespace, SynthesisError},
 };
 
-type LeafVar<ConstraintF> = [UInt8<ConstraintF>];
+//
+// HELPFUL DATA TYPES
+// (You don't need to worry about what's going on in the next two type definitions, just know that
+// these are types that you can use.)
+//
+
+/// R1CS representation of a Leaf. Remember a Leaf is just a Vec<u8>, so this is a Vec<UInt8<F>>
+type LeafVar<F> = [UInt8<F>];
+/// R1CS representation of a field element
 pub type FV = FpVar<F>;
 
-// Define the merkle tree params in R1CS land
+/// Merkle tree params for R1CS. This is analogous to our MerkleConfig implementation
 struct MerkleConfigGadget;
-impl ConfigGadget<MerkleConfig, ConstraintF> for MerkleConfigGadget {
-    type Leaf = LeafVar<ConstraintF>;
-    type LeafDigest = <LeafHashGadget as CRHSchemeGadget<LeafHash, ConstraintF>>::OutputVar;
-    type LeafInnerConverter = BytesVarDigestConverter<Self::LeafDigest, ConstraintF>;
-    type InnerDigest =
-        <TwoToOneHashGadget as TwoToOneCRHSchemeGadget<TwoToOneHash, ConstraintF>>::OutputVar;
+impl ConfigGadget<MerkleConfig, F> for MerkleConfigGadget {
+    type Leaf = LeafVar<F>;
+    type LeafDigest = <LeafHashGadget as CRHSchemeGadget<LeafHash, F>>::OutputVar;
+    type LeafInnerConverter = BytesVarDigestConverter<Self::LeafDigest, F>;
+    type InnerDigest = <TwoToOneHashGadget as TwoToOneCRHSchemeGadget<TwoToOneHash, F>>::OutputVar;
     type LeafHash = LeafHashGadget;
     type TwoToOneHash = TwoToOneHashGadget;
 }
 
-// (You don't need to worry about what's going on in the next two type definitions,
-// just know that these are types that you can use.)
+/// R1CS representation of MerkleRoot, the Merkle tree root
+pub type RootVar = <TwoToOneHashGadget as TwoToOneCRHSchemeGadget<TwoToOneHash, F>>::OutputVar;
 
-/// The R1CS equivalent of the the Merkle tree root.
-pub type RootVar =
-    <TwoToOneHashGadget as TwoToOneCRHSchemeGadget<TwoToOneHash, ConstraintF>>::OutputVar;
+/// R1CS representation of SimplePath, i.e., the Merkle tree path
+type SimplePathVar = PathVar<MerkleConfig, F, MerkleConfigGadget>;
 
-/// The R1CS equivalent of the the Merkle tree path.
-type SimplePathVar = PathVar<MerkleConfig, ConstraintF, MerkleConfigGadget>;
-
-/// A spendable "note". The leaves in our tree are note commitments.
+/// R1CS representation of Note
 pub struct NoteVar {
     amount: FV,
     nullifier: FV,
 }
 
+/// Defines a way to serialize a NoteVar to bytes. This is only works if it is identical to the
+/// `impl CanonicalSerialize for Note` serialization.
 impl ToBytesGadget<F> for NoteVar {
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
+        // Serialize self.amount then self.nullifier
         Ok([self.amount.to_bytes()?, self.nullifier.to_bytes()?].concat())
     }
 }
 
 impl NoteVar {
+    /// Commits to this note using the given nonce. Concretely, this computes `Hash(nonce ||
+    /// self.amount || self.nullifier)`.
     pub fn commit(
         &self,
         hash_params: &LeafHashParamsVar,
@@ -67,71 +75,111 @@ impl NoteVar {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
+//
+// THE ZK CIRCUIT
+//
 
+/// Finally we have the definition of our circuit. This is what we will create and pass to the
+/// Groth16 prover in order to do a ZK Burn
 #[derive(Clone)]
 pub struct MerkleTreeVerification {
-    // These are constants that will be embedded into the circuit
+    // These are constants that will be embedded into the circuit. They describe how the hash
+    // function works. Don't worry about this.
     pub leaf_crh_params: <LeafHash as CRHScheme>::Parameters,
     pub two_to_one_crh_params: <TwoToOneHash as TwoToOneCRHScheme>::Parameters,
 
     // Public inputs to the circuit
+    /// The root of the merkle tree we're proving membership in
     pub root: MerkleRoot,
+    /// The leaf in that tree. In our case, the leaf is also a commitment to the note we're burning
     pub leaf: Vec<u8>,
+    /// The nullifier of the note. This is a random value unique to every note. If we burn a note,
+    /// revealing its nullifier, then any future burns of the same note will clearly be duplicates,
+    /// because an observer can check for a repeated nullifier.
     pub note_nullifier: F,
 
-    // Private witnesses for the circuit
+    // Private inputs (aka "witnesses") for the circuit
+    /// The amount of "money" contained in the note
     pub note_amount: F,
+    /// The private nonce (i.e. randomness) used to commit to the note
     pub note_nonce: F,
+    /// The merkle authentication path. Assuming the hash we use is secure, this path is proof that
+    /// the committed leaf is in the tree.
     pub auth_path: Option<SimplePath>,
 }
 
-impl ConstraintSynthesizer<ConstraintF> for MerkleTreeVerification {
-    fn generate_constraints(
-        self,
-        cs: ConstraintSystemRef<ConstraintF>,
-    ) -> Result<(), SynthesisError> {
-        // First, we allocate the public inputs
-        let root_var =
-            <RootVar as AllocVar<MerkleRoot, _>>::new_input(ns!(cs, "root"), || Ok(&self.root))?;
-
-        // Then, we allocate the public parameters as constants:
+/// generate_constraints is where the circuit functionality is defined. It doesn't return any
+/// value. Rather, it takes in a constraint system, and adds a bunch of constraints to that system
+/// (implicitly or explicitly). A proof is valid if and only if the final constraint system is
+/// satisfied.
+impl ConstraintSynthesizer<F> for MerkleTreeVerification {
+    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+        // First, allocate the public parameters as constants
         let leaf_crh_params = LeafHashParamsVar::new_constant(cs.clone(), &self.leaf_crh_params)?;
         let two_to_one_crh_params =
             TwoToOneHashParamsVar::new_constant(cs.clone(), &self.two_to_one_crh_params)?;
 
-        // Witness the amount, which is secret. Input the nullifier, which is public
-        let note_var = {
-            let amount = FV::new_witness(ns!(cs, "note amt"), || Ok(&self.note_amount))?;
-            let nullifier = FV::new_input(ns!(cs, "note nullifier"), || Ok(&self.note_nullifier))?;
-            NoteVar { amount, nullifier }
-        };
-        // Witness the commitment nonce
-        let nonce_var = FV::new_witness(ns!(cs, "note nonce"), || Ok(&self.note_nonce))?;
+        //
+        // Next, allocate the public inputs. Note the ns! macros are just to create name spaces for
+        // our constraints. It doesn't matter what this does, and it doesn't matter what string you
+        // give it.
+        //
 
-        // Input the note commitment. It is also the leaf in our tree.
+        // Merkle root
+        let claimed_root_var =
+            <RootVar as AllocVar<MerkleRoot, _>>::new_input(ns!(cs, "root"), || Ok(&self.root))?;
+        // Nullifier of the note. This is public so you can only burn a note once
+        let note_nullifier = FV::new_input(ns!(cs, "note nullifier"), || Ok(&self.note_nullifier))?;
+        // Note commitment. This is also the leaf in our tree.
         let claimed_note_com_var = UInt8::new_input_vec(ns!(cs, "note com"), &self.leaf)?;
 
-        // First real check: make sure that the computed commitment equals the claimed commitment
-        let computed_note_com_var = note_var.commit(&leaf_crh_params, &nonce_var)?;
-        computed_note_com_var.enforce_equal(&claimed_note_com_var)?;
+        //
+        // Now we witness our private inputs
+        //
 
-        // Finally, we allocate our path as a private witness variable:
-        let path = SimplePathVar::new_witness(ns!(cs, "path_var"), || {
+        // The amount of "money" in this note
+        let note_amount = FV::new_witness(ns!(cs, "note amt"), || Ok(&self.note_amount))?;
+        // Commitment nonce
+        let nonce_var = FV::new_witness(ns!(cs, "note nonce"), || Ok(&self.note_nonce))?;
+        // Merkle authentication path
+        let path = SimplePathVar::new_witness(ns!(cs, "merkle path"), || {
             Ok(self.auth_path.as_ref().unwrap())
         })?;
 
-        // Recompute the root from the given path
-        let leaf_var = computed_note_com_var;
-        let computed_root =
-            path.calculate_root(&leaf_crh_params, &two_to_one_crh_params, &leaf_var)?;
-        // Second real check: ensure that the computed root equals the claimed public root
-        computed_root.enforce_equal(&root_var)?;
+        //
+        // Ok everything has been inputted. Now we do the logic of the circuit.
+        //
 
-        // All good
+        // Put the pieces of our note together into a NoteVar
+        let note_var = NoteVar {
+            amount: note_amount,
+            nullifier: note_nullifier,
+        };
+
+        // CHECK #1: Note opening.
+        // We "open" the note commitment here. Concretely, we compute the commitment of our
+        // note_var using nonce_var. We then assert that this value is equal to the publicly known
+        // commitment.
+        let computed_note_com_var = note_var.commit(&leaf_crh_params, &nonce_var)?;
+        computed_note_com_var.enforce_equal(&claimed_note_com_var)?;
+
+        // CHECK #2: Membership test.
+        // We prove membership of the nonce commitment in the Merkle tree. Concretely, we use the
+        // leaf from above and path_var to recompute the Merkle root. We then assert that this root
+        // is equal to the publicly known root.
+        let leaf_var = computed_note_com_var;
+        let computed_root_var =
+            path.calculate_root(&leaf_crh_params, &two_to_one_crh_params, &leaf_var)?;
+        computed_root_var.enforce_equal(&claimed_root_var)?;
+
+        // All done with the checks
         Ok(())
     }
 }
+
+//
+// TESTS
+//
 
 #[cfg(test)]
 mod test {
@@ -146,57 +194,73 @@ mod test {
 
     #[test]
     fn correctness_and_soundness() {
-        // Let's set up an RNG for use within tests. Note that this is *not* safe
-        // for any production use.
+        //
+        // Setup
+        //
+
+        // Let's set up an RNG for use within tests. Note that this is NOTE safe for any production
+        // use
         let mut rng = ark_std::test_rng();
 
-        // First, let's sample the public parameters for the hash functions:
+        // First, let's sample the public parameters for the hash functions
         let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
         let two_to_one_crh_params = <TwoToOneHash as TwoToOneCRHScheme>::setup(&mut rng).unwrap();
 
-        // Make 7 random leaves
+        // Make 7 random leaves. These aren't even commitments. Technically, these are
+        // distinguishable from commitments because our "hash function" is not a PRF. But I don't
+        // care. This is a test.
+        let num_placeholder_leaves = 7;
         let mut leaves: Vec<_> = core::iter::repeat_with(|| {
             let mut leaf_buf: Leaf = [0u8; 64];
             rng.fill_bytes(&mut leaf_buf);
             leaf_buf
         })
-        .take(7)
+        .take(num_placeholder_leaves)
         .collect();
+
         // Create a note and make the last leaf a commitment to that note
         let note = Note::rand(&mut rng);
         let note_nonce = F::rand(&mut rng);
         let note_com = note.commit(&leaf_crh_params, &note_nonce);
         leaves.push(note_com);
 
-        // Generate the tree and compute the root
+        // Create the tree and compute the Merkle root
         let tree = SimpleMerkleTree::new(&leaf_crh_params, &two_to_one_crh_params, leaves.clone())
             .unwrap();
         let correct_root = tree.root();
 
-        // Now generate the proof
+        //
+        // Proof construction
+        //
 
-        // We'll reveal and prove membership of the 7th item in the tree
-        let idx_to_prove = 7;
+        // We'll reveal and prove membership of the 8th leaf in the tree, i.e., the note we just
+        // created.
+        let idx_to_prove = num_placeholder_leaves;
         let claimed_leaf = &leaves[idx_to_prove];
 
-        // Now, let's try to generate an authentication path for the 5th item.
+        // Generate a Merkle authentication path that proves the membership of the 8th leaf
         let auth_path = tree.generate_proof(idx_to_prove).unwrap();
 
+        // We have everything we need. Build the circuit
         let circuit = MerkleTreeVerification {
-            // Constants that the circuit needs
+            // Constants for hashing
             leaf_crh_params,
             two_to_one_crh_params,
 
-            // Public inputs to the circuit
+            // Public inputs
             root: correct_root,
             leaf: claimed_leaf.to_vec(),
             note_nullifier: note.nullifier,
 
-            // Witness to membership
+            // Private inputs
             auth_path: Some(auth_path),
             note_amount: note.amount,
             note_nonce,
         };
+
+        //
+        // Proof execution
+        //
 
         // First, some boilerplate that helps with debugging
         let mut layer = ConstraintLayer::default();
@@ -204,7 +268,7 @@ mod test {
         let subscriber = tracing_subscriber::Registry::default().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
-        // Make a fresh constraint system and run the circuit
+        // Correctness test: Make a fresh constraint system and run the circuit.
         let cs = ConstraintSystem::new_ref();
         circuit.clone().generate_constraints(cs.clone()).unwrap();
         // This execution should succeed
@@ -213,7 +277,8 @@ mod test {
             "circuit correctness check failed; a valid circuit did not succeed"
         );
 
-        // Now modify the circuit to have a random amount. This should make the proof fail.
+        // Soundness test #1: Modify the circuit to have a random amount. This should make the
+        // proof fail.
         let mut bad_note_circuit = circuit.clone();
         bad_note_circuit.note_amount = F::rand(&mut rng);
         // Run the circuit
@@ -225,7 +290,8 @@ mod test {
             "circuit should not be satisfied after changing the note amount"
         );
 
-        // Now modify the circuit to have a random root. This should make the proof fail.
+        // Soundness test #2: Modify the circuit to have a random root. This should also make the
+        // proof fail.
         let mut bad_root_circuit = circuit.clone();
         bad_root_circuit.root = MerkleRoot::rand(&mut rng);
         // Run the circuit
