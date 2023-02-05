@@ -1,5 +1,6 @@
-use arkworks_merkle_tree_example::common::{
-    write_to_file, LeafHash, TwoToOneHash, PEDERSEN_PARAMS_FILENAME,
+use arkworks_merkle_tree_example::{
+    common::{write_to_file, PEDERSEN_PARAMS_FILENAME},
+    hash::{LeafHash, TwoToOneHash},
 };
 
 use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};

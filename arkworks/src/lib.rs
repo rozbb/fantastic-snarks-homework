@@ -1,47 +1,29 @@
 pub mod common;
-use crate::common::*;
-
-use ark_ff::Field;
 
 pub mod constraints;
-// mod constraints_test;
+pub mod hash;
+pub mod merkle;
+pub mod note;
 
-use ark_crypto_primitives::{
-    crh::{CRHScheme, TwoToOneCRHScheme},
-    merkle_tree::{
-        constraints::ConfigGadget, ByteDigestConverter, Config, DigestConverter, MerkleTree, Path,
-    },
-    Error as ArkError,
-};
-use ark_serialize::CanonicalSerialize;
+use ark_r1cs_std::fields::fp::FpVar;
 
-#[derive(Clone)]
-pub struct MerkleConfig;
+/// A field element over BLS12-381. That is, the curve that our exercise uses for everything
+pub type F = ark_bls12_381::Fr;
 
-impl Config for MerkleConfig {
-    type Leaf = [u8];
-
-    type LeafDigest = <LeafHash as CRHScheme>::Output;
-    type LeafInnerDigestConverter = ByteDigestConverter<Self::LeafDigest>;
-    type InnerDigest = <TwoToOneHash as TwoToOneCRHScheme>::Output;
-
-    type LeafHash = LeafHash;
-    type TwoToOneHash = TwoToOneHash;
-}
-
-/// A Merkle tree containing account information.
-pub type SimpleMerkleTree = MerkleTree<MerkleConfig>;
-/// The root of the account Merkle tree.
-pub type MerkleRoot = <TwoToOneHash as TwoToOneCRHScheme>::Output;
-/// A membership proof for a given account.
-pub type SimplePath = Path<MerkleConfig>;
+/// R1CS representation of a field element
+pub type FV = FpVar<F>;
 
 // This is a basic functionality test of the native Merkle tree. This does no ZK operations at all.
 // It just checks that you can prove membership in a tree by giving a verifier the Merkle
 // authentication path.
 #[test]
 fn test_merkle_tree() {
-    use ark_crypto_primitives::crh::CRHScheme;
+    use crate::{
+        hash::{LeafHash, TwoToOneHash},
+        merkle::SimpleMerkleTree,
+    };
+    use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
+
     // Let's set up an RNG for use within tests. Note that this is NOT safe for any production use.
     let mut rng = ark_std::test_rng();
 

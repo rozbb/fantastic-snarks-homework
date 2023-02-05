@@ -1,10 +1,11 @@
 use arkworks_merkle_tree_example::{
     common::{
-        read_from_file, write_to_file, Leaf, Note, PEDERSEN_PARAMS_FILENAME, TESTCASE_BAD_FILENAME,
+        read_from_file, write_to_file, PEDERSEN_PARAMS_FILENAME, TESTCASE_BAD_FILENAME,
         TESTCASE_GOOD_FILENAME,
     },
-    constraints::MerkleTreeVerification,
-    MerkleRoot, SimpleMerkleTree,
+    constraints::BurnCircuit,
+    merkle::{Leaf, MerkleRoot, SimpleMerkleTree},
+    note::Note,
 };
 
 use ark_bls12_381::Bls12_381;
@@ -22,7 +23,7 @@ type F = <E as Pairing>::ScalarField;
 /// Generates a Groth16 CRS, proof, and public input for the given merkle tree circuit, tree root,
 /// and claimed-member leaf. Might return `None` if the proof fails (ie if the statement is false)
 fn gen_proof_package(
-    circuit: &MerkleTreeVerification,
+    circuit: &BurnCircuit,
     root: &MerkleRoot,
     nullifier: &F,
     claimed_leaf: &[u8],
@@ -81,7 +82,7 @@ fn main() {
     // Now, let's try to generate an authentication path for the 5th item.
     let auth_path = tree.generate_proof(idx_to_prove).unwrap();
 
-    let circuit = MerkleTreeVerification {
+    let circuit = BurnCircuit {
         // Constants that the circuit needs
         leaf_crh_params,
         two_to_one_crh_params,

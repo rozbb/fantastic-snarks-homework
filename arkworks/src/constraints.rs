@@ -1,88 +1,21 @@
-use crate::common::*;
-use crate::{MerkleConfig, MerkleRoot, SimplePath};
-
-use core::borrow::Borrow;
-
-use ark_bls12_381::Fr as F;
-use ark_crypto_primitives::crh::{
-    constraints::CRHSchemeGadget, CRHScheme, TwoToOneCRHScheme, TwoToOneCRHSchemeGadget,
+use crate::{
+    hash::{LeafHash, LeafHashParamsVar, TwoToOneHash, TwoToOneHashParamsVar},
+    merkle::{MerkleRoot, RootVar, SimplePath, SimplePathVar},
+    note::NoteVar,
+    F, FV,
 };
-use ark_crypto_primitives::merkle_tree::{
-    constraints::{BytesVarDigestConverter, DigestVarConverter},
-    constraints::{ConfigGadget, PathVar},
-};
-use ark_r1cs_std::{fields::fp::FpVar, prelude::*};
+
+use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
+use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, uint8::UInt8};
 use ark_relations::{
     ns,
-    r1cs::{ConstraintSynthesizer, ConstraintSystemRef, Namespace, SynthesisError},
+    r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
 
-//
-// HELPFUL DATA TYPES
-// (You don't need to worry about what's going on in the next two type definitions, just know that
-// these are types that you can use.)
-//
-
-/// R1CS representation of a Leaf. Remember a Leaf is just a Vec<u8>, so this is a Vec<UInt8<F>>
-type LeafVar<F> = [UInt8<F>];
-/// R1CS representation of a field element
-pub type FV = FpVar<F>;
-
-/// Merkle tree params for R1CS. This is analogous to our MerkleConfig implementation
-struct MerkleConfigGadget;
-impl ConfigGadget<MerkleConfig, F> for MerkleConfigGadget {
-    type Leaf = LeafVar<F>;
-    type LeafDigest = <LeafHashGadget as CRHSchemeGadget<LeafHash, F>>::OutputVar;
-    type LeafInnerConverter = BytesVarDigestConverter<Self::LeafDigest, F>;
-    type InnerDigest = <TwoToOneHashGadget as TwoToOneCRHSchemeGadget<TwoToOneHash, F>>::OutputVar;
-    type LeafHash = LeafHashGadget;
-    type TwoToOneHash = TwoToOneHashGadget;
-}
-
-/// R1CS representation of MerkleRoot, the Merkle tree root
-pub type RootVar = <TwoToOneHashGadget as TwoToOneCRHSchemeGadget<TwoToOneHash, F>>::OutputVar;
-
-/// R1CS representation of SimplePath, i.e., the Merkle tree path
-type SimplePathVar = PathVar<MerkleConfig, F, MerkleConfigGadget>;
-
-/// R1CS representation of Note
-pub struct NoteVar {
-    amount: FV,
-    nullifier: FV,
-}
-
-/// Defines a way to serialize a NoteVar to bytes. This is only works if it is identical to the
-/// `impl CanonicalSerialize for Note` serialization.
-impl ToBytesGadget<F> for NoteVar {
-    fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
-        // Serialize self.amount then self.nullifier
-        Ok([self.amount.to_bytes()?, self.nullifier.to_bytes()?].concat())
-    }
-}
-
-impl NoteVar {
-    /// Commits to this note using the given nonce. Concretely, this computes `Hash(nonce ||
-    /// self.amount || self.nullifier)`.
-    pub fn commit(
-        &self,
-        hash_params: &LeafHashParamsVar,
-        nonce: &FV,
-    ) -> Result<Vec<UInt8<F>>, SynthesisError> {
-        let nonce_bytes = nonce.to_bytes()?;
-        let note_bytes = self.to_bytes()?;
-        let hash = LeafHashGadget::evaluate(&hash_params, &[nonce_bytes, note_bytes].concat())?;
-        hash.to_bytes()
-    }
-}
-
-//
-// THE ZK CIRCUIT
-//
-
-/// Finally we have the definition of our circuit. This is what we will create and pass to the
-/// Groth16 prover in order to do a ZK Burn
+/// Our ZK circuit. This is what we will create and pass to the Groth16 prover in order to do a ZK
+/// Burn
 #[derive(Clone)]
-pub struct MerkleTreeVerification {
+pub struct BurnCircuit {
     // These are constants that will be embedded into the circuit. They describe how the hash
     // function works. Don't worry about this.
     pub leaf_crh_params: <LeafHash as CRHScheme>::Parameters,
@@ -112,7 +45,7 @@ pub struct MerkleTreeVerification {
 /// value. Rather, it takes in a constraint system, and adds a bunch of constraints to that system
 /// (implicitly or explicitly). A proof is valid if and only if the final constraint system is
 /// satisfied.
-impl ConstraintSynthesizer<F> for MerkleTreeVerification {
+impl ConstraintSynthesizer<F> for BurnCircuit {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         // First, allocate the public parameters as constants
         let leaf_crh_params = LeafHashParamsVar::new_constant(cs.clone(), &self.leaf_crh_params)?;
@@ -184,7 +117,10 @@ impl ConstraintSynthesizer<F> for MerkleTreeVerification {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::SimpleMerkleTree;
+    use crate::{
+        merkle::{Leaf, SimpleMerkleTree},
+        note::Note,
+    };
 
     use ark_bls12_381::Fr as F;
     use ark_ff::UniformRand;
@@ -242,7 +178,7 @@ mod test {
         let auth_path = tree.generate_proof(idx_to_prove).unwrap();
 
         // We have everything we need. Build the circuit
-        let circuit = MerkleTreeVerification {
+        let circuit = BurnCircuit {
             // Constants for hashing
             leaf_crh_params,
             two_to_one_crh_params,
