@@ -1,3 +1,44 @@
+# Burning money in zero knowledge
+
+In this project we will build a system for provably burning monetary notes in a public ledger _without_ revealing which note you're burning.
+
+## Preliminaries
+
+A quick overview of the cryptographic components we use.
+
+1. We model our public ledger as a Merkle tree. See [here](https://pangea.cloud/docs/audit/merkle-trees) for a short overview on Merkle trees and tree membership proofs (aka _authentication paths_).
+2. The leaves of our Merkle tree are _cryptographic commitments_. We denote by `Com(val; nonce)` a commitment to the value `val`, using the _nonce_ (aka randomness) `nonce`. In order to be secure, a commitment scheme must be:
+    * Binding - This means that a commitment cannot be opened to a different value other than what was originally committed to. Concretely, if `c = Com(val; nonce)` for some `val, nonce`, and someone produces `val', nonce'` such that `c = Com(val'; nonce')`, then it must be the case that `val' = val` and `nonce' = nonce`.
+    * Hiding - This means that a commitment should say nothing about what is committed. In other words, for any choices of `val, val'` it should be impossible for an adversary to tell whether a given commitment `c` commits to `val` or `val'` (assuming the nonce is uniformly sampled).
+
+An example of a secure commitment scheme is `Com(val; nonce) = Hash(nonce || val)` where `Hash` is a cryptographically secure hash function with certain properties (i.e., it is not vulnerable to length extension; so pick anything besides MD5, SHA-1, SHA-256 or SHA-512).
+
+## Setup
+
+Let's describe a quirky payment system.
+
+All value in our system is contained in _notes_. A note is simply a tuple which contains `(amount, serial_number)`. Since these are private values, we instead deal in _note commitments_, i.e., `Com((amount, serial_num); nonce)`.
+
+```
+      G = root
+    /   \
+  E      F
+ / \    / \
+A   B  C   D
+
+where
+    A = Com((amt1, serial1); nonce1)
+    B = Com((amt2, serial2); nonce2)
+    C = Com((amt3, serial3); nonce3)
+    D = Com((amt4, serial4); nonce4)
+```
+
+Now suppose every note is a collector's item. They are quite rare. Being in possession of one is a big deal. We say a user "possesses" a note if they can prove to an external party that they know the note's opening and that that note is in the Merkle tree. Obviously, simply revealing this information outright would leak both the position of the note in the tree and the amount contained in the note. So we phrase it as a zero knowledge proof: "I know an `amount`, `serial_num`, and `nonce` such that `Com((amount, serial_num); nonce)` appears in the Merkle tree ."
+
+We complicate things just a little bit more. We also care about double counting possession: a user shouldn't be able to claim to possess two notes in the tree when they only possess one. So we force a user to reveal the serial number when presenting a proof of membership. In other words, the proof is now "I know an `amount` and `nonce` such that `Com((amount, serial_num); nonce)` appears in the Merkle tree", where `serial_num` is known to both the prover and verifier.
+
+This kind of proof requires two steps: proving knowledge of an opening to a commitment, and proving membership in a Merkle tree.
+
 # Checking Merkle tree paths
 
 In this example, our goal is to familiarize ourselves with the workflow of
@@ -62,8 +103,6 @@ private input ("witnesses")
 
 
 * WHAT IS A COMMITMENT
-* WHAT IS A MERKLE TREE
-    * WHAT IS A MERKLE AUTHENTICATION PATH
 
 
 # Assignments

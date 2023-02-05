@@ -124,9 +124,8 @@ mod test {
 
     use ark_bls12_381::Fr as F;
     use ark_ff::UniformRand;
-    use ark_relations::r1cs::{ConstraintLayer, ConstraintSystem, TracingMode};
+    use ark_relations::r1cs::ConstraintSystem;
     use rand::RngCore;
-    use tracing_subscriber::layer::SubscriberExt;
 
     // Sets up a legitimate burn circuit
     fn setup(mut rng: impl RngCore) -> BurnCircuit {
