@@ -1,6 +1,6 @@
 # Burning money in zero knowledge
 
-In this project we will build a system for provably burning monetary notes in a public ledger _without_ revealing which note you're burning.
+In this project we will build a system for provably burning monetary cards in a public ledger _without_ revealing which card you're burning.
 
 Our goal is to familiarize ourselves with the workflow of writing zero-knowledge proofs in the [arkworks](https://github.com/arkworks-rs/) ecosystem. We will learn how to build zero-knowledge circuits, prove openings to cryptographic commitments, and prove membership in a Merkle tree. The purpose of this exercise is to make you feel comfortable playing with new ideas in arkworks. It is a massive framework, with lots of features, as well as weird sharp corners, so jumping right in might just be the best way to get started.
 
@@ -10,7 +10,7 @@ If you are new to Rust, check out [this meta-guide](https://gist.github.com/noxa
 
 We strongly encourage you to use an IDE for this project. Whatever IDE you pick (e.g., Visual Code, Sublime, Neovim, Emacs), we recommend the following add-ons
 
-* Language Server Protocol (LSP) — This lets you work directly with the semantics of a language. Arkworks is not the best documented library, and sometimes it is easiest to just use LSP to jump to the definition of a `struct` in order to find out what methods it exposes. Note some IDEs come with this built in, though they may require a specific installation to support Rust.
+* Language Server Protocol (LSP) — This lets you work directly with the semantics of a language. Arkworks is not the best documented library, and sometimes it is easiest to just use LSP to jump to the definition of a `struct` in order to find out what methods it exposes. card some IDEs come with this built in, though they may require a specific installation to support Rust.
 * `rust-analyzer` — This will show you errors in the source code itself, which will save you from having to go back and forth between your editor and your `cargo test` output
 
 # Cryptographic preliminaries
@@ -24,11 +24,15 @@ A quick overview of the cryptographic components we use.
 
 An example of a secure commitment scheme is `Com(val; nonce) = Hash(nonce || val)` where `Hash` is a cryptographically secure hash function with certain properties (i.e., it is not vulnerable to length extension; so pick anything besides MD5, SHA-1, SHA-256 or SHA-512).
 
+**TODO**:
+  * what is a circuit
+  * constant
+  * public input
+  * private input ("witnesses")
+
 # Intro
 
-Let's describe a quirky payment system.
-
-All value in our system is contained in _notes_. A note is simply a tuple which contains `(amount, serial_number)`. Since these are private values, we instead deal in _note commitments_, i.e., `Com((amount, serial_num); nonce)`.
+A baseball card is a tuple which contains `(purchase_price, serial_num)`, i.e., the dollar amount that the card was bought for, and the serial number printed on it. There is a public ledger, represented as a Merkle tree, whose leaves are all the known authentic baseball cards, appearing in order of time of purchase. In order to hide the potentially sensitive values of these cards, we make the leaves _card commitments_, i.e., values of the form `Com((purchase_price, serial_num); nonce)`.
 
 ```
       G = root
@@ -44,66 +48,74 @@ where
     D = Com((amt4, serial4); nonce4)
 ```
 
-Now suppose every note is a collector's item. They are quite rare. Lloyd's of Linden (a New Jersey-based "insurance" company) is giving out a certificate of authenticity to anyone who can prove possession of a note. Lloyd's says that a user "possesses" a note if they can prove that they know the note's opening and that that note is in the Merkle tree. This has two issues.
+Now suppose every card is a collector's item. They are quite rare. Lloyd's of Linden (a New Jersey-based "insurance" company) is giving out a certificate of authenticity to anyone who can prove possession of a card. According to Lloyd's a collector _possesses_ a card if and only if they can prove that they know the card commitment's opening, and that that commitment is in the Merkle tree. Proving this to Lloyd's has some complications, though.
 
-The first issue is privacy. Obviously, simply revealing this information outright would leak both the position of the note in the tree (ie when the user got the note) and the amount contained in the note. Neither of these are strictly necessary for Lloyd's to know. The solution here is to instead use a zero-knowledge proof: "I know an `amount`, `serial_num`, and `nonce` such that `Com((amount, serial_num); nonce)` appears in the Merkle tree."
+The first issue is privacy. Obviously, simply revealing this information outright would leak both the position of the card in the tree (ie when the collector got the card) and the amount contained in the card. Neither of these are strictly necessary for Lloyd's to know. The solution here is to instead use a zero-knowledge proof: "I know an `amount`, `serial_num`, and `nonce` such that `Com((amount, serial_num); nonce)` appears in the Merkle tree."
 
-The second issue is double-counting. Currently, there's no way for Lloyd's to tell if someone sent them 100 proofs for the same exact card. It should be the case that every card gets at most 1 certificate of authenticity. The solution here is to force a user to reveal the serial number when presenting a proof of membership. In other words, the zero-knowledge proof statement is now "I know an `amount` and `nonce` such that `Com((amount, serial_num); nonce)` appears in the Merkle tree", where `serial_num` is known to both the prover and verifier.
+The second issue (which is caused by our solution to the first issue) is double-counting. As stated, there's no way for Lloyd's to tell if someone sent them 50 proofs for the same exact card. It should be the case that every card gets at most 1 certificate of authenticity. The solution we will use is to force a collector to reveal the serial number when presenting a proof of membership. In other words, the zero-knowledge proof statement is now "I know an `amount` and `nonce` such that `Com((amount, serial_num); nonce)` appears in the Merkle tree", where `serial_num` is known to both the prover and verifier.
 
 Our final proof statement has two steps: proving knowledge of an opening to a commitment, and proving membership in a Merkle tree. We will step through how each of these works in the arkworks zero-knowledge proof ecosystem.
 
-# Getting started with arkworks
-
-Let's start by taking a look at a "native" version of the computation we want to perform. Let's go to `src/lib.rs` and look at the code example in `test_merkle_tree`.
-
-In this example, we create a bunch of random notes, and then make those leaves in a Merkle tree (using a Pedersen hash function). We then check that a claimed path for some leaf corresponds to a given root.
-
-Our goal is to do some of this, and more, in zero-knowledge.
+**TODO:** In the code, rename `PossessionCircuit`, `Note`, `NoteVar` to `PossessionCircuit`, `Card`, and `CardVar`. Also rename `amount` and `nullifier` to `purchase_price` and `serial_num`.
 
 # Assignment
 
-A partial implementation of our statement above is given in `src/constraints.rs` in the `BurnCircuit::generate_constraints` method. Of the three tests in that file, currently 2 fail. Go ahead and run `cargo test` to see the failures.
+A partial implementation of our statement above is given in `src/constraints.rs` in the `PossessionCircuit::generate_constraints` method. Of the three tests in that file, currently 2 fail. Go ahead and run `cargo test` to see the failures.
 
-There's plenty of other files in `src/` as well. Peak around and see what they're doing. Hopefully the comments, as well as your code-jumping IDE will give you an idea of what's happening. For example `src/lib.rs` has a nice native code example in `test_merkle_tree`. In this example, we create a bunch of random notes, and then make those leaves in a Merkle tree (using a Pedersen hash function). We then check that a claimed path for some leaf corresponds to a given root. In this assignment we will do this, and more, in zero-knowledge.
+There's plenty of other files in `src/` as well. Peak around and see what they're doing. Hopefully the comments, as well as your code-jumping IDE will give you an idea of what's happening. For example `src/lib.rs` has a nice native code example in `test_merkle_tree`. In this example, we create a bunch of random cards, and then make those leaves in a Merkle tree (using a Pedersen hash function). We then check that a claimed path for some leaf corresponds to a given root. In this assignment we will do this, and more, in zero-knowledge.
 
-The first two problems will require you to add some code to `BurnCircuit::generate_constraints`.
+The first two problems will require you to add some code to `PossessionCircuit::generate_constraints`.
 
 ## Problem 1: Proving commitment opening in ZK
 
-Currently, the `note_soundness` test fails. This test checks that `BurnCircuit` actually proves knowledge of the opening to the note commitment. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random opening to a note commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
+Currently, the `note_soundness` test fails. This test checks that `PossessionCircuit` actually proves knowledge of the opening to the card commitment. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random opening to a card commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
 
-Write below `CHECK #1` a few lines of code that enforce the equality that the claimed note commitment equals the commitment of the secret note inputs. The file will have more detail on how to do this. Ensure that the `note_soundness` test passes.
+Write below `CHECK #1` a few lines of code that enforce the equality that the claimed card commitment equals the commitment of the secret card inputs. The file will have more detail on how to do this. Ensure that the `note_soundness` test passes.
 
 ## Problem 2: Proving Merkle tree membership in ZK
 
-Currently, the `tree_soundness` test fails. This test checks that `BurnCircuit` actually proves that the claimed note commitment appears in the Merkle tree. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random Merkle root. The reason the test currently fails is because no tree membership check is performed in `generate_constraints`.
+Currently, the `tree_soundness` test fails. This test checks that `PossessionCircuit` actually proves that the claimed card commitment appears in the Merkle tree. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random Merkle root. The reason the test currently fails is because no tree membership check is performed in `generate_constraints`.
 
 Write below `CHECK #2` a few lines of code that enforce leaf membership in the Merkle tree. The file will have more detail on how to do this. Ensure that the `tree_soundness` test passes.
 
+**TODO:** Put more comments describing what to do in these checks
+
 ## Problem 3: Groth16 proofs
 
-Up until now we've just been symbolically executing the circuits. In reality, we want users to compute their proof and give it, along with their nullifier, to Lloyd's. This involves a few steps:
+Up until now we've just been symbolically executing the circuits. In reality, we want collectors to compute their proof and give it, along with their nullifier, to Lloyd's. This involves a few steps:
 
-1. Lloyd's will generate the CRS for `BurnCircuit`, and their Pedersen hash constants, and publish both.
-2. Users will prove ownership of their note and send the proof and commitment back to Lloyd's.
+1. Lloyd's will generate the CRS for `PossessionCircuit`, and their Pedersen hash constants, and publish both.
+2. Collectors will prove ownership of their card and send the proof and commitment back to Lloyd's.
 3. Lloyd's will check the proofs with respect to the public input
 
 For the sake of simplicity, we will assume everyone has a copy of the same Merkle tree, which we generate in TODO
 
-For each of the steps above, we have defined an executable file in the `src/bin/` directory. To run the binary, do `cargo run --release --bin BINARYNAME`. E.g., to run `src/bin/prove.rs` do `cargo run --release --bin prove`. 
+For each of the steps above, we have defined an executable file in the `src/bin/` directory. To run the binary, do `cargo run --release --bin BINARYNAME`. E.g., to run `src/bin/prove.rs` do `cargo run --release --bin prove`.
 
 Your job in this assignment is to
 
-1. Fill out `bin/gen_params.rs`. This executable generates the Pedersen hash constants as well as the `BurnCircuit` CRS and put them in `pedersen_params.bin` and `burn_crs.bin`, respectively.
-2. Fill out `bin/prove.rs`. This executable uses the above two files, as well as knowledge of a note, to create a Groth16 proof and output it and the circuit's public inputs to `proof.bin` and `pubinputs.bin`, respectively.
+1. Fill out `bin/gen_params.rs`. This executable generates the Pedersen hash constants as well as the `PossessionCircuit` CRS and put them in `pedersen_params.bin` and `burn_crs.bin`, respectively.
+2. Fill out `bin/prove.rs`. This executable uses the above two files, as well as knowledge of a card, to create a Groth16 proof and output it and the circuit's public inputs to `proof.bin` and `pubinputs.bin`, respectively.
 3. Fill out `bin/verify.rs`. This executable uses the above four files to verify the Groth16 proof.
 
 Tip: if you remove the `--release` flag, proving will be slower, but it will also be easier to debug, as the proof compiler will be able to catch when you're trying to prove something that's false.
 
+**TODO:** Write these files
+
+## Problem 4: Revealing purchase price
+
+Lloyd's has changed their policy. They now require everyone to reveal the purchase price of their card.
+
+1. Copy `src/constraints.rs` to a new file `src/constraints_showprice.rs`. Similarly, copy `src/bin/{gen_params.rs, prove.rs, verify.rs}` to `src/bin/{gen_params_showprice.rs, prove_showprice.rs, verify_showprice.rs}`.
+2. Modify `constraints_showprice::PossessionCircuit` to have `purchase_price` as a _public input_ rather than a private one.
+3. Modify the remaining files to treat `purchase_price` as a public input value.
+4. Make sure that param generation, proving, and verification all succeed.
+
+**TODO:** Make a binary helpers file that contains Merkle tree info as well as filenames. Include instructions to use different filenames for the `showprice` version of proofs
+
 # Acknowledgements
 
 This exercise was adapted from the [arkworks Merkle tree exercise](https://github.com/arkworks-rs/r1cs-tutorial/tree/5d3a9022fb6deade245505748fd661278e9c0ff9/merkle-tree-example), originally written by Pratyush Mishra.
-
 
 ---
 
@@ -130,31 +142,6 @@ Let's go over this incantation part-by-part.
     * The [`ns!`](https://docs.rs/ark-relations/0.4.0/ark_relations/macro.ns.html) macro enters a new namespace in the constraint system, with the aim of making it easier to identify failing constraints when debugging.
     * The closure `|| Ok(self.root)` provides an (optional) assignment to the variables reserved by `new_input`. The closure is invoked only if we need the assignment. For example, it is not invoked during SNARK setup.
 
-We similarly allocate the note commitment as a public input variable, allocate the note amount and nonce as private input variables, and allocate the parameters of the hash as "constants" in the constraint system. This means that these parameters are "baked" into the constraint system when it is created, and changing these parameters would result in a different constraint system. Finally, we allocate the membership path as a private witness variable.
+We similarly allocate the card commitment as a public input variable, allocate the card amount and nonce as private input variables, and allocate the parameters of the hash as "constants" in the constraint system. This means that these parameters are "baked" into the constraint system when it is created, and changing these parameters would result in a different constraint system. Finally, we allocate the membership path as a private witness variable.
 
 Now, we must  fill in the blanks by adding constraints to check the membership path. Go ahead and follow the hint in `constraints.rs` to complete this task.
-
-# Testing our constraints
-
-Once we've written our path-checking constraints, we have to check that the resulting constraint system satisfies two properties: that it accepts a valid membership path, and that it rejects an invalid path. We perform these checks via two tests: `merkle_tree_constraints_correctness` and `merkle_tree_constraints_soundness`. Go ahead and look at those for an example of how to test constraint systems in practice.
-
-To run tests, use `cargo test`
-
-ZK BURN
-Burn a note. Can't burn it twice
-
-
-what is a circuit
-constant
-public input
-private input ("witnesses")
-
-
-* WHAT IS A COMMITMENT
-
-
-# Assignments
-
-1. Fill in the details in X
-2. Make a version of a ZK burn that also reveals the amount in your note
-3. Why is the merkle authentication path private??
