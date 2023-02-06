@@ -1,6 +1,6 @@
-# Burning money in zero knowledge
+# Insuring baseball cards in zero-knowledge
 
-In this project we will build a system for provably burning monetary cards in a public ledger _without_ revealing which card you're burning.
+In this project we will build a system for proving possession and details about a baseball card in a public purchase ledger _without_ revealing which card you're talking about. Yes this is silly. Extra credit for this homework is to find a better metaphor for the code I already have written.
 
 Our goal is to familiarize ourselves with the workflow of writing zero-knowledge proofs in the [arkworks](https://github.com/arkworks-rs/) ecosystem. We will learn how to build zero-knowledge circuits, prove openings to cryptographic commitments, and prove membership in a Merkle tree. The purpose of this exercise is to make you feel comfortable playing with new ideas in arkworks. It is a massive framework, with lots of features, as well as weird sharp corners, so jumping right in might just be the best way to get started.
 
@@ -25,6 +25,7 @@ A quick overview of the cryptographic components we use.
 An example of a secure commitment scheme is `Com(val; nonce) = Hash(nonce || val)` where `Hash` is a cryptographically secure hash function with certain properties (i.e., it is not vulnerable to length extension; so pick anything besides MD5, SHA-1, SHA-256 or SHA-512).
 
 **TODO**:
+
   * what is a circuit
   * constant
   * public input
