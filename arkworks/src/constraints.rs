@@ -38,7 +38,7 @@ pub struct BurnCircuit {
     pub note_nonce: F,
     /// The merkle authentication path. Assuming the hash we use is secure, this path is proof that
     /// the committed leaf is in the tree.
-    pub auth_path: Option<SimplePath>,
+    pub auth_path: SimplePath,
 }
 
 /// generate_constraints is where the circuit functionality is defined. It doesn't return any
@@ -75,9 +75,7 @@ impl ConstraintSynthesizer<F> for BurnCircuit {
         // Commitment nonce
         let nonce_var = FV::new_witness(ns!(cs, "note nonce"), || Ok(&self.note_nonce))?;
         // Merkle authentication path
-        let path = SimplePathVar::new_witness(ns!(cs, "merkle path"), || {
-            Ok(self.auth_path.as_ref().unwrap())
-        })?;
+        let path = SimplePathVar::new_witness(ns!(cs, "merkle path"), || Ok(&self.auth_path))?;
 
         //
         // Ok everything has been inputted. Now we do the logic of the circuit.
@@ -183,7 +181,7 @@ mod test {
             note_nullifier: note.nullifier,
 
             // Private inputs
-            auth_path: Some(auth_path),
+            auth_path,
             note_amount: note.amount,
             note_nonce,
         }

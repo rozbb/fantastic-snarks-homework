@@ -21,8 +21,10 @@ fn test_merkle_tree() {
     use crate::{
         hash::{LeafHash, TwoToOneHash},
         merkle::SimpleMerkleTree,
+        note::Note,
     };
     use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
+    use ark_ff::UniformRand;
 
     // Let's set up an RNG for use within tests. Note that this is NOT safe for any production use.
     let mut rng = ark_std::test_rng();
@@ -31,25 +33,24 @@ fn test_merkle_tree() {
     let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
     let two_to_one_crh_params = <TwoToOneHash as TwoToOneCRHScheme>::setup(&mut rng).unwrap();
 
+    // Make 16 commitments and put them in the tree. For unimportant reasons, this must be a power
+    // of two
+    let num_leaves = 16;
+    let leaves: Vec<_> = core::iter::repeat_with(|| {
+        let note = Note::rand(&mut rng);
+        let note_nonce = F::rand(&mut rng);
+        note.commit(&leaf_crh_params, &note_nonce)
+    })
+    .take(num_leaves)
+    .collect();
+
     // Construct a Merkle tree with 8 leaves
-    let tree = SimpleMerkleTree::new(
-        &leaf_crh_params,
-        &two_to_one_crh_params,
-        vec![
-            &b"1"[..],
-            &b"2"[..],
-            &b"3"[..],
-            &b"10"[..],
-            &b"9"[..],
-            &b"17"[..],
-            &b"70"[..],
-            &b"45"[..],
-        ],
-    )
-    .unwrap();
+    let tree =
+        SimpleMerkleTree::new(&leaf_crh_params, &two_to_one_crh_params, leaves.clone()).unwrap();
 
     // Generate a membership proof for the 5th item.
-    let proof = tree.generate_proof(4).unwrap();
+    let idx_to_prove = 4;
+    let proof = tree.generate_proof(idx_to_prove).unwrap();
 
     //
     // Verification
@@ -58,7 +59,7 @@ fn test_merkle_tree() {
     // Get the root we want to verify against
     let root = tree.root();
     // Get the value of the leaf that's allegedly in the tree
-    let claimed_leaf = &b"9"[..];
+    let claimed_leaf = leaves[idx_to_prove].as_slice();
     // Verify the proof
     assert!(proof
         .verify(

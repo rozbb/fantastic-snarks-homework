@@ -93,7 +93,7 @@ fn main() {
         note_nullifier: note.nullifier,
 
         // Witness to membership
-        auth_path: Some(auth_path),
+        auth_path,
         // Commitment opening details
         note_nonce,
         note_amount: note.amount,
