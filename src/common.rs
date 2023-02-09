@@ -1,15 +1,62 @@
-use ark_serialize::CanonicalSerialize;
+use crate::{
+    card::Card,
+    hash::{LeafHashParams, TwoToOneHashParams},
+    merkle::{Leaf, SimpleMerkleTree},
+    F,
+};
 
-use ark_serialize::CanonicalDeserialize;
 use std::{
     fs::OpenOptions,
     io::{Read, Write},
     path::Path,
 };
 
+use ark_crypto_primitives::crh::CRHScheme;
+use ark_ff::UniformRand;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+
+pub const POSSESSION_CRS_FILENAME: &str = "possession_crs.bin";
 pub const PEDERSEN_PARAMS_FILENAME: &str = "pedersen_params.bin";
 pub const TESTCASE_GOOD_FILENAME: &str = "proof_package_good.bin";
 pub const TESTCASE_BAD_FILENAME: &str = "proof_package_bad.bin";
+
+/// A helper function that deterministically creates 16 baseball cards and their nonces
+fn all_cards() -> Vec<(Card, F)> {
+    let mut rng = ark_std::test_rng();
+
+    core::iter::repeat_with(|| {
+        let card = Card::rand(&mut rng);
+        let card_nonce = F::rand(&mut rng);
+        (card, card_nonce)
+    })
+    .take(16)
+    .collect()
+}
+
+/// Returns a Merkle tree of all the cards generated above for our test
+pub fn gen_test_tree(
+    leaf_crh_params: &LeafHashParams,
+    two_to_one_crh_params: &TwoToOneHashParams,
+) -> SimpleMerkleTree {
+    let leaves: Vec<Leaf> = all_cards()
+        .into_iter()
+        .map(|(card, nonce)| card.commit(&leaf_crh_params, &nonce))
+        .collect();
+
+    SimpleMerkleTree::new(&leaf_crh_params, &two_to_one_crh_params, leaves).unwrap()
+}
+
+/// Unfortuantely you can't get leaves out of trees, so we need a separate function for returning
+/// the i-th leaf.
+pub fn get_test_leaf(leaf_crh_params: &LeafHashParams, i: usize) -> Leaf {
+    let (card, nonce) = all_cards().get(i).unwrap().clone();
+    card.commit(&leaf_crh_params, &nonce)
+}
+
+/// Returns the i-th card and nonce in the test tree.
+pub fn get_test_card(i: usize) -> (Card, F) {
+    all_cards().get(i).unwrap().clone()
+}
 
 pub fn write_to_file<S: CanonicalSerialize>(path_str: &str, data: &S) {
     // Convert string to FS path

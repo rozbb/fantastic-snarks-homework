@@ -93,11 +93,11 @@ For the sake of simplicity, we will assume everyone has a copy of the same Merkl
 
 For each of the steps above, we have defined an executable file in the `src/bin/` directory. To run the binary, do `cargo run --release --bin BINARYNAME`. E.g., to run `src/bin/prove.rs` do `cargo run --release --bin prove`.
 
-Your job in this assignment is to
+Your job in this assignment is to:
 
-1. Fill out `bin/gen_params.rs`. This executable generates the Pedersen hash constants as well as the `PossessionCircuit` CRS and put them in `pedersen_params.bin` and `burn_crs.bin`, respectively.
-2. Fill out `bin/prove.rs`. This executable uses the above two files, as well as knowledge of a card, to create a Groth16 proof and output it and the circuit's public inputs to `proof.bin` and `pubinputs.bin`, respectively.
-3. Fill out `bin/verify.rs`. This executable uses the above four files to verify the Groth16 proof.
+1. Fill in the portions of `bin/gen_params.rs` marked `todo!()`. This executable generates the Pedersen hash constants as well as the `PossessionCircuit` CRS and put them in `pedersen_params.bin` and `burn_crs.bin`, respectively.
+2. Fill in the portions of  `bin/prove.rs` marked `todo!()`. This executable uses the above two files, as well as knowledge of a card, to create a Groth16 proof and output it and the circuit's public inputs to `proof.bin` and `pubinputs.bin`, respectively.
+3. Fill in the portions of `bin/verify.rs` marked `todo!()`. This executable uses the above four files to verify the Groth16 proof.
 
 Tip: if you remove the `--release` flag, proving will be slower, but it will also be easier to debug, as the proof compiler will be able to catch when you're trying to prove something that's false.
 

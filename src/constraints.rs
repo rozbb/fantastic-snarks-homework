@@ -116,10 +116,7 @@ impl ConstraintSynthesizer<F> for PossessionCircuit {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        card::Card,
-        merkle::{Leaf, SimpleMerkleTree},
-    };
+    use crate::common::{gen_test_tree, get_test_card, get_test_leaf};
 
     use ark_bls12_381::Fr as F;
     use ark_ff::UniformRand;
@@ -135,28 +132,12 @@ mod test {
         let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
         let two_to_one_crh_params = <TwoToOneHash as TwoToOneCRHScheme>::setup(&mut rng).unwrap();
 
-        // Make 7 random leaves. These aren't even commitments. Technically, these are
-        // distinguishable from commitments because our "hash function" is not a PRF. But I don't
-        // care. This is a test.
-        let num_placeholder_leaves = 7;
-        let mut leaves: Vec<_> = core::iter::repeat_with(|| {
-            let mut leaf_buf: Leaf = [0u8; 64];
-            rng.fill_bytes(&mut leaf_buf);
-            leaf_buf
-        })
-        .take(num_placeholder_leaves)
-        .collect();
-
-        // Create a card and make the last leaf a commitment to that card
-        let card = Card::rand(&mut rng);
-        let card_nonce = F::rand(&mut rng);
-        let card_com = card.commit(&leaf_crh_params, &card_nonce);
-        leaves.push(card_com);
-
-        // Create the tree and compute the Merkle root
-        let tree = SimpleMerkleTree::new(&leaf_crh_params, &two_to_one_crh_params, leaves.clone())
-            .unwrap();
+        // Generate a test tree and the root
+        let tree = gen_test_tree(&leaf_crh_params, &two_to_one_crh_params);
         let correct_root = tree.root();
+        // Also imagine we possess the card that appears at index 7 in the tree
+        let our_idx = 7;
+        let (card, card_nonce) = get_test_card(our_idx);
 
         //
         // Proof construction
@@ -164,8 +145,8 @@ mod test {
 
         // We'll reveal and prove membership of the 8th leaf in the tree, i.e., the card com we
         // just created.
-        let idx_to_prove = num_placeholder_leaves;
-        let claimed_leaf = &leaves[idx_to_prove];
+        let idx_to_prove = our_idx;
+        let claimed_leaf = get_test_leaf(&leaf_crh_params, idx_to_prove);
 
         // Generate a Merkle authentication path that proves the membership of the 8th leaf
         let auth_path = tree.generate_proof(idx_to_prove).unwrap();

@@ -2,12 +2,14 @@ use crate::F;
 
 use ark_crypto_primitives::crh::{
     constraints::{CRHSchemeGadget, TwoToOneCRHSchemeGadget},
-    pedersen,
+    pedersen, CRHScheme, TwoToOneCRHScheme,
 };
 use ark_ed_on_bls12_381::{constraints::EdwardsVar as JubjubVar, EdwardsProjective as Jubjub};
 
 pub type LeafHash = pedersen::CRH<Jubjub, LeafWindow>;
 pub type TwoToOneHash = pedersen::TwoToOneCRH<Jubjub, TwoToOneWindow>;
+pub type LeafHashParams = <LeafHash as CRHScheme>::Parameters;
+pub type TwoToOneHashParams = <TwoToOneHash as TwoToOneCRHScheme>::Parameters;
 
 // We use the leaf hash for card commitments as well. So it needs to handle inputs of 256*3-bits,
 // or 96 bytes

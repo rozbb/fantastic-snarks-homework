@@ -1,11 +1,12 @@
 use arkworks_merkle_tree_example::{
     card::Card,
     common::{
-        read_from_file, write_to_file, PEDERSEN_PARAMS_FILENAME, TESTCASE_BAD_FILENAME,
-        TESTCASE_GOOD_FILENAME,
+        gen_test_tree, get_test_card, get_test_leaf, read_from_file, write_to_file,
+        PEDERSEN_PARAMS_FILENAME, TESTCASE_BAD_FILENAME, TESTCASE_GOOD_FILENAME,
     },
     constraints::PossessionCircuit,
     merkle::{Leaf, MerkleRoot, SimpleMerkleTree},
+    E, F,
 };
 
 use ark_bls12_381::Bls12_381;
@@ -16,9 +17,6 @@ use ark_groth16::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
 };
 use rand::RngCore;
-
-type E = Bls12_381;
-type F = <E as Pairing>::ScalarField;
 
 /// Generates a Groth16 CRS, proof, and public input for the given merkle tree circuit, tree root,
 /// and claimed-member leaf. Might return `None` if the proof fails (ie if the statement is false)
@@ -52,32 +50,21 @@ fn main() {
     // Read the hashing params from a file
     let (leaf_crh_params, two_to_one_crh_params) = read_from_file(PEDERSEN_PARAMS_FILENAME);
 
-    // Make 7 random leaves
-    let mut leaves: Vec<_> = core::iter::repeat_with(|| {
-        let mut leaf_buf: Leaf = [0u8; 64];
-        rng.fill_bytes(&mut leaf_buf);
-        leaf_buf
-    })
-    .take(7)
-    .collect();
-    // Create a card and make the last leaf a commitment to that card
-    let card = Card::rand(&mut rng);
-    let card_nonce = F::rand(&mut rng);
-    let card_com = card.commit(&leaf_crh_params, &card_nonce);
-    leaves.push(card_com);
-
-    // Generate the tree and compute the root
-    let tree =
-        SimpleMerkleTree::new(&leaf_crh_params, &two_to_one_crh_params, leaves.clone()).unwrap();
+    // Generate a test tree and the root
+    let tree = gen_test_tree(&leaf_crh_params, &two_to_one_crh_params);
     let correct_root = tree.root();
+    // Also imagine we possess the card that appears at index 7 in the tree
+    let our_idx = 7;
+    let (card, card_nonce) = get_test_card(our_idx);
+
     // We also make an incorrect root. This should produce an invalid proof
     let incorrect_root = MerkleRoot::rand(&mut rng);
 
     // Now generate the proof
 
     // We'll reveal and prove membership of the 7th item in the tree
-    let idx_to_prove = 7;
-    let claimed_leaf = &leaves[idx_to_prove];
+    let idx_to_prove = our_idx;
+    let claimed_leaf = &get_test_leaf(&leaf_crh_params, idx_to_prove);
 
     // Now, let's try to generate an authentication path for the 5th item.
     let auth_path = tree.generate_proof(idx_to_prove).unwrap();
