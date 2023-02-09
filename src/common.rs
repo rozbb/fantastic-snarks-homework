@@ -11,14 +11,15 @@ use std::{
     path::Path,
 };
 
-use ark_crypto_primitives::crh::CRHScheme;
 use ark_ff::UniformRand;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 
-pub const POSSESSION_CRS_FILENAME: &str = "possession_crs.bin";
+pub const POSSESSION_PK_FILENAME: &str = "possession_proving_key.bin";
+pub const POSSESSION_VK_FILENAME: &str = "possession_verifying_key.bin";
+pub const POSSESSION_PROOF_FILENAME: &str = "possession_proof.bin";
+pub const POSSESSION_REVEALED_SERIAL_FILENAME: &str = "possession_revealed_serial.bin";
+
 pub const PEDERSEN_PARAMS_FILENAME: &str = "pedersen_params.bin";
-pub const TESTCASE_GOOD_FILENAME: &str = "proof_package_good.bin";
-pub const TESTCASE_BAD_FILENAME: &str = "proof_package_bad.bin";
 
 /// A helper function that deterministically creates 16 baseball cards and their nonces
 fn all_cards() -> Vec<(Card, F)> {
@@ -94,6 +95,6 @@ pub fn read_from_file<S: CanonicalDeserialize>(path_str: &str) -> S {
         .expect(&format!("failed to read from {path_str}"));
 
     // Deserialize the data
-    S::deserialize_compressed(buf.as_slice())
+    S::deserialize_compressed_unchecked(buf.as_slice())
         .expect(&format!("failed to deserialize from {path_str}"))
 }

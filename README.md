@@ -27,6 +27,7 @@ An example of a secure commitment scheme is `Com(val; nonce) = Hash(nonce || val
 **TODO**:
 
   * what is a circuit
+  * crs/proving key
   * constant
   * public input
   * private input ("witnesses")

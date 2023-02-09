@@ -64,7 +64,7 @@ impl ConstraintSynthesizer<F> for PossessionCircuit {
         // Card's serial number. This is public so you can only show possession once
         let card_serial_num = FV::new_input(ns!(cs, "card serial"), || Ok(&self.card_serial_num))?;
         // Card commitment. This is also the leaf in our tree.
-        let claimed_card_com_var = UInt8::new_input_vec(ns!(cs, "card com"), &self.leaf)?;
+        let claimed_card_com_var = UInt8::new_witness_vec(ns!(cs, "card com"), &self.leaf)?;
 
         //
         // Now we witness our private inputs

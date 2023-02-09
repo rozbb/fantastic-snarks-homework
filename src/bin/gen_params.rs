@@ -1,5 +1,8 @@
 use arkworks_merkle_tree_example::{
-    common::{gen_test_tree, write_to_file, PEDERSEN_PARAMS_FILENAME, POSSESSION_CRS_FILENAME},
+    common::{
+        gen_test_tree, write_to_file, PEDERSEN_PARAMS_FILENAME, POSSESSION_PK_FILENAME,
+        POSSESSION_VK_FILENAME,
+    },
     constraints::PossessionCircuit,
     hash::{LeafHash, TwoToOneHash},
     merkle::{Leaf, MerkleRoot},
@@ -8,7 +11,7 @@ use arkworks_merkle_tree_example::{
 
 use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
 use ark_ff::UniformRand;
-use ark_groth16::generate_random_parameters;
+use ark_groth16::{generate_random_parameters, prepare_verifying_key, ProvingKey};
 use rand::RngCore;
 
 fn main() {
@@ -27,6 +30,7 @@ fn main() {
         PEDERSEN_PARAMS_FILENAME,
         &(leaf_crh_params.clone(), two_to_one_crh_params.clone()),
     );
+    println!("Wrote {PEDERSEN_PARAMS_FILENAME}");
 
     //
     // Now we generate the Groth16 CRS for PossessionCircuit. To do so, we have to make a
@@ -64,7 +68,11 @@ fn main() {
         card_purchase_price: F::rand(&mut rng),
     };
 
-    // Generate the Groth16 CRS and write to a file
-    let crs = generate_random_parameters::<E, _, _>(circuit.clone(), &mut rng).unwrap();
-    write_to_file(POSSESSION_CRS_FILENAME, &crs);
+    // Generate the Groth16 proving and verifying key and write to files
+    let pk: ProvingKey<E> = generate_random_parameters(circuit.clone(), &mut rng).unwrap();
+    let vk = prepare_verifying_key(&pk.vk);
+    write_to_file(POSSESSION_PK_FILENAME, &pk);
+    write_to_file(POSSESSION_VK_FILENAME, &vk);
+    println!("Wrote {POSSESSION_PK_FILENAME}");
+    println!("Wrote {POSSESSION_VK_FILENAME}");
 }
