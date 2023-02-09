@@ -1,9 +1,9 @@
 pub mod common;
 
+pub mod card;
 pub mod constraints;
 pub mod hash;
 pub mod merkle;
-pub mod note;
 
 use ark_r1cs_std::fields::fp::FpVar;
 
@@ -19,9 +19,9 @@ pub type FV = FpVar<F>;
 #[test]
 fn test_merkle_tree() {
     use crate::{
+        card::Card,
         hash::{LeafHash, TwoToOneHash},
         merkle::SimpleMerkleTree,
-        note::Note,
     };
     use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
     use ark_ff::UniformRand;
@@ -37,9 +37,9 @@ fn test_merkle_tree() {
     // of two
     let num_leaves = 16;
     let leaves: Vec<_> = core::iter::repeat_with(|| {
-        let note = Note::rand(&mut rng);
-        let note_nonce = F::rand(&mut rng);
-        note.commit(&leaf_crh_params, &note_nonce)
+        let card = Card::rand(&mut rng);
+        let card_nonce = F::rand(&mut rng);
+        card.commit(&leaf_crh_params, &card_nonce)
     })
     .take(num_leaves)
     .collect();

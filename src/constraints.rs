@@ -1,7 +1,7 @@
 use crate::{
+    card::CardVar,
     hash::{LeafHash, LeafHashParamsVar, TwoToOneHash, TwoToOneHashParamsVar},
     merkle::{MerkleRoot, RootVar, SimplePath, SimplePathVar},
-    note::NoteVar,
     F, FV,
 };
 
@@ -13,9 +13,9 @@ use ark_relations::{
 };
 
 /// Our ZK circuit. This is what we will create and pass to the Groth16 prover in order to do a ZK
-/// Burn
+/// proof of possession
 #[derive(Clone)]
-pub struct BurnCircuit {
+pub struct PossessionCircuit {
     // These are constants that will be embedded into the circuit. They describe how the hash
     // function works. Don't worry about this.
     pub leaf_crh_params: <LeafHash as CRHScheme>::Parameters,
@@ -24,18 +24,18 @@ pub struct BurnCircuit {
     // Public inputs to the circuit
     /// The root of the merkle tree we're proving membership in
     pub root: MerkleRoot,
-    /// The leaf in that tree. In our case, the leaf is also a commitment to the note we're burning
+    /// The leaf in that tree. In our case, the leaf is also a commitment to the card we're showing
     pub leaf: Vec<u8>,
-    /// The nullifier of the note. This is a random value unique to every note. If we burn a note,
-    /// revealing its nullifier, then any future burns of the same note will clearly be duplicates,
-    /// because an observer can check for a repeated nullifier.
-    pub note_nullifier: F,
+    /// The serial number of this card. This is a random value unique to every card. If we show
+    /// possession of a card, revealing its serial, then any future possession shows of the same
+    /// card will clearly be duplicates, because an observer can check for a repeated serial.
+    pub card_serial_num: F,
 
     // Private inputs (aka "witnesses") for the circuit
-    /// The amount of "money" contained in the note
-    pub note_amount: F,
-    /// The private nonce (i.e. randomness) used to commit to the note
-    pub note_nonce: F,
+    /// The amount the card was purchased for
+    pub card_purchase_price: F,
+    /// The private nonce (i.e. randomness) used to commit to the card
+    pub card_nonce: F,
     /// The merkle authentication path. Assuming the hash we use is secure, this path is proof that
     /// the committed leaf is in the tree.
     pub auth_path: SimplePath,
@@ -45,7 +45,7 @@ pub struct BurnCircuit {
 /// value. Rather, it takes in a constraint system, and adds a bunch of constraints to that system
 /// (implicitly or explicitly). A proof is valid if and only if the final constraint system is
 /// satisfied.
-impl ConstraintSynthesizer<F> for BurnCircuit {
+impl ConstraintSynthesizer<F> for PossessionCircuit {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         // First, allocate the public parameters as constants
         let leaf_crh_params = LeafHashParamsVar::new_constant(cs.clone(), &self.leaf_crh_params)?;
@@ -61,19 +61,20 @@ impl ConstraintSynthesizer<F> for BurnCircuit {
         // Merkle root
         let claimed_root_var =
             <RootVar as AllocVar<MerkleRoot, _>>::new_input(ns!(cs, "root"), || Ok(&self.root))?;
-        // Nullifier of the note. This is public so you can only burn a note once
-        let note_nullifier = FV::new_input(ns!(cs, "note nullifier"), || Ok(&self.note_nullifier))?;
-        // Note commitment. This is also the leaf in our tree.
-        let claimed_note_com_var = UInt8::new_input_vec(ns!(cs, "note com"), &self.leaf)?;
+        // Card's serial number. This is public so you can only show possession once
+        let card_serial_num = FV::new_input(ns!(cs, "card serial"), || Ok(&self.card_serial_num))?;
+        // Card commitment. This is also the leaf in our tree.
+        let claimed_card_com_var = UInt8::new_input_vec(ns!(cs, "card com"), &self.leaf)?;
 
         //
         // Now we witness our private inputs
         //
 
-        // The amount of "money" in this note
-        let note_amount = FV::new_witness(ns!(cs, "note amt"), || Ok(&self.note_amount))?;
+        // The amount the card was purchase for
+        let card_purchase_price =
+            FV::new_witness(ns!(cs, "purchase price"), || Ok(&self.card_purchase_price))?;
         // Commitment nonce
-        let nonce_var = FV::new_witness(ns!(cs, "note nonce"), || Ok(&self.note_nonce))?;
+        let nonce_var = FV::new_witness(ns!(cs, "card nonce"), || Ok(&self.card_nonce))?;
         // Merkle authentication path
         let path = SimplePathVar::new_witness(ns!(cs, "merkle path"), || Ok(&self.auth_path))?;
 
@@ -81,24 +82,24 @@ impl ConstraintSynthesizer<F> for BurnCircuit {
         // Ok everything has been inputted. Now we do the logic of the circuit.
         //
 
-        // Put the pieces of our note together into a NoteVar
-        let note_var = NoteVar {
-            amount: note_amount,
-            nullifier: note_nullifier,
+        // Put the pieces of our card together into a CardVar
+        let card_var = CardVar {
+            amount: card_purchase_price,
+            nullifier: card_serial_num,
         };
 
-        // CHECK #1: Note opening.
-        // We "open" the note commitment here. Concretely, we compute the commitment of our
-        // note_var using nonce_var. We then assert that this value is equal to the publicly known
+        // CHECK #1: Card opening.
+        // We "open" the card commitment here. Concretely, we compute the commitment of our
+        // card_var using nonce_var. We then assert that this value is equal to the publicly known
         // commitment.
-        let computed_note_com_var = note_var.commit(&leaf_crh_params, &nonce_var)?;
-        computed_note_com_var.enforce_equal(&claimed_note_com_var)?;
+        let computed_card_com_var = card_var.commit(&leaf_crh_params, &nonce_var)?;
+        computed_card_com_var.enforce_equal(&claimed_card_com_var)?;
 
         // CHECK #2: Membership test.
         // We prove membership of the nonce commitment in the Merkle tree. Concretely, we use the
         // leaf from above and path_var to recompute the Merkle root. We then assert that this root
         // is equal to the publicly known root.
-        let leaf_var = claimed_note_com_var;
+        let leaf_var = claimed_card_com_var;
         let computed_root_var =
             path.calculate_root(&leaf_crh_params, &two_to_one_crh_params, &leaf_var)?;
         computed_root_var.enforce_equal(&claimed_root_var)?;
@@ -116,8 +117,8 @@ impl ConstraintSynthesizer<F> for BurnCircuit {
 mod test {
     use super::*;
     use crate::{
+        card::Card,
         merkle::{Leaf, SimpleMerkleTree},
-        note::Note,
     };
 
     use ark_bls12_381::Fr as F;
@@ -125,9 +126,9 @@ mod test {
     use ark_relations::r1cs::ConstraintSystem;
     use rand::RngCore;
 
-    // Sets up a legitimate burn circuit
-    fn setup(mut rng: impl RngCore) -> BurnCircuit {
-        // Let's set up an RNG for use within tests. Note that this is NOTE safe for any production
+    // Sets up a legitimate possession circuit
+    fn setup(mut rng: impl RngCore) -> PossessionCircuit {
+        // Let's set up an RNG for use within tests. Note that this is NOT safe for any production
         // use
 
         // First, let's sample the public parameters for the hash functions
@@ -146,11 +147,11 @@ mod test {
         .take(num_placeholder_leaves)
         .collect();
 
-        // Create a note and make the last leaf a commitment to that note
-        let note = Note::rand(&mut rng);
-        let note_nonce = F::rand(&mut rng);
-        let note_com = note.commit(&leaf_crh_params, &note_nonce);
-        leaves.push(note_com);
+        // Create a card and make the last leaf a commitment to that card
+        let card = Card::rand(&mut rng);
+        let card_nonce = F::rand(&mut rng);
+        let card_com = card.commit(&leaf_crh_params, &card_nonce);
+        leaves.push(card_com);
 
         // Create the tree and compute the Merkle root
         let tree = SimpleMerkleTree::new(&leaf_crh_params, &two_to_one_crh_params, leaves.clone())
@@ -161,8 +162,8 @@ mod test {
         // Proof construction
         //
 
-        // We'll reveal and prove membership of the 8th leaf in the tree, i.e., the note we just
-        // created.
+        // We'll reveal and prove membership of the 8th leaf in the tree, i.e., the card com we
+        // just created.
         let idx_to_prove = num_placeholder_leaves;
         let claimed_leaf = &leaves[idx_to_prove];
 
@@ -170,7 +171,7 @@ mod test {
         let auth_path = tree.generate_proof(idx_to_prove).unwrap();
 
         // We have everything we need. Build the circuit
-        BurnCircuit {
+        PossessionCircuit {
             // Constants for hashing
             leaf_crh_params,
             two_to_one_crh_params,
@@ -178,12 +179,12 @@ mod test {
             // Public inputs
             root: correct_root,
             leaf: claimed_leaf.to_vec(),
-            note_nullifier: note.nullifier,
+            card_serial_num: card.serial_num,
 
             // Private inputs
             auth_path,
-            note_amount: note.amount,
-            note_nonce,
+            card_purchase_price: card.purchase_price,
+            card_nonce,
         }
     }
 
@@ -204,24 +205,24 @@ mod test {
         );
     }
 
-    // Note soundness test: Modify the circuit to have a random amount. This should make the
+    // Card soundness test: Modify the circuit to have a random amount. This should make the
     // proof fail, since the computed commitment up longer matches up with the claimed commitment.
     #[test]
-    fn note_soundness() {
-        // Make a new circuit and maul its note amount
+    fn card_soundness() {
+        // Make a new circuit and maul its purchase price
         let mut rng = ark_std::test_rng();
-        let mut bad_note_circuit = setup(&mut rng);
-        bad_note_circuit.note_amount = F::rand(&mut rng);
+        let mut bad_card_circuit = setup(&mut rng);
+        bad_card_circuit.card_purchase_price = F::rand(&mut rng);
 
         // Run the circuit on a fresh constraint system
         let cs = ConstraintSystem::new_ref();
-        bad_note_circuit.generate_constraints(cs.clone()).unwrap();
+        bad_card_circuit.generate_constraints(cs.clone()).unwrap();
 
         // At least one constraint should not be satisfied. That is, the invalid circuit should
         // fail to verify.
         assert!(
             !cs.is_satisfied().unwrap(),
-            "circuit should not be satisfied after changing the note amount"
+            "circuit should not be satisfied after changing the card purchase price"
         );
     }
 
@@ -242,7 +243,7 @@ mod test {
         // fail to verify.
         assert!(
             !cs.is_satisfied().unwrap(),
-            "circuit should not be satisfied after changing the note amount"
+            "circuit should not be satisfied after changing the Merkle root"
         );
     }
 }

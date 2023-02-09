@@ -1,11 +1,11 @@
 use arkworks_merkle_tree_example::{
+    card::Card,
     common::{
         read_from_file, write_to_file, PEDERSEN_PARAMS_FILENAME, TESTCASE_BAD_FILENAME,
         TESTCASE_GOOD_FILENAME,
     },
-    constraints::BurnCircuit,
+    constraints::PossessionCircuit,
     merkle::{Leaf, MerkleRoot, SimpleMerkleTree},
-    note::Note,
 };
 
 use ark_bls12_381::Bls12_381;
@@ -23,7 +23,7 @@ type F = <E as Pairing>::ScalarField;
 /// Generates a Groth16 CRS, proof, and public input for the given merkle tree circuit, tree root,
 /// and claimed-member leaf. Might return `None` if the proof fails (ie if the statement is false)
 fn gen_proof_package(
-    circuit: &BurnCircuit,
+    circuit: &PossessionCircuit,
     root: &MerkleRoot,
     nullifier: &F,
     claimed_leaf: &[u8],
@@ -60,11 +60,11 @@ fn main() {
     })
     .take(7)
     .collect();
-    // Create a note and make the last leaf a commitment to that note
-    let note = Note::rand(&mut rng);
-    let note_nonce = F::rand(&mut rng);
-    let note_com = note.commit(&leaf_crh_params, &note_nonce);
-    leaves.push(note_com);
+    // Create a card and make the last leaf a commitment to that card
+    let card = Card::rand(&mut rng);
+    let card_nonce = F::rand(&mut rng);
+    let card_com = card.commit(&leaf_crh_params, &card_nonce);
+    leaves.push(card_com);
 
     // Generate the tree and compute the root
     let tree =
@@ -82,7 +82,7 @@ fn main() {
     // Now, let's try to generate an authentication path for the 5th item.
     let auth_path = tree.generate_proof(idx_to_prove).unwrap();
 
-    let circuit = BurnCircuit {
+    let circuit = PossessionCircuit {
         // Constants that the circuit needs
         leaf_crh_params,
         two_to_one_crh_params,
@@ -90,18 +90,18 @@ fn main() {
         // Public inputs to the circuit
         root: correct_root,
         leaf: claimed_leaf.to_vec(),
-        note_nullifier: note.nullifier,
+        card_serial_num: card.serial_num,
 
         // Witness to membership
         auth_path,
         // Commitment opening details
-        note_nonce,
-        note_amount: note.amount,
+        card_nonce,
+        card_purchase_price: card.purchase_price,
     };
 
     // Create a proof package using the correct tree root. That is, generate the Groth16 CRS, the
     // proof with respect to that CRS, and the public inputs to that proof.
-    let proof_package = gen_proof_package(&circuit, &correct_root, &note.nullifier, claimed_leaf)
+    let proof_package = gen_proof_package(&circuit, &correct_root, &card.serial_num, claimed_leaf)
         .expect("failed to make honest proof");
     let (crs, proof, public_inputs) = proof_package.clone();
 
@@ -115,8 +115,9 @@ fn main() {
     // Now do the same thing but use the wrong root. This should fail to prove
     let mut circuit = circuit.clone();
     circuit.root = incorrect_root;
-    let proof_package = gen_proof_package(&circuit, &incorrect_root, &note.nullifier, claimed_leaf)
-        .expect("failed to make an incorrect proof");
+    let proof_package =
+        gen_proof_package(&circuit, &incorrect_root, &card.serial_num, claimed_leaf)
+            .expect("failed to make an incorrect proof");
     let (_, proof, public_inputs) = proof_package.clone();
     assert!(
         !verify_proof(&pvk, &proof, &public_inputs).unwrap(),

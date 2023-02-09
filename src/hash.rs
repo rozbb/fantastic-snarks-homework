@@ -9,7 +9,7 @@ use ark_ed_on_bls12_381::{constraints::EdwardsVar as JubjubVar, EdwardsProjectiv
 pub type LeafHash = pedersen::CRH<Jubjub, LeafWindow>;
 pub type TwoToOneHash = pedersen::TwoToOneCRH<Jubjub, TwoToOneWindow>;
 
-// We use the leaf hash for note commitments as well. So it needs to handle inputs of 256*3-bits,
+// We use the leaf hash for card commitments as well. So it needs to handle inputs of 256*3-bits,
 // or 96 bytes
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct LeafWindow;

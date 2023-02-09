@@ -57,8 +57,6 @@ The second issue (which is caused by our solution to the first issue) is double-
 
 Our final proof statement has two steps: proving knowledge of an opening to a commitment, and proving membership in a Merkle tree. We will step through how each of these works in the arkworks zero-knowledge proof ecosystem.
 
-**TODO:** In the code, rename `PossessionCircuit`, `Note`, `NoteVar` to `PossessionCircuit`, `Card`, and `CardVar`. Also rename `amount` and `nullifier` to `purchase_price` and `serial_num`.
-
 # Assignment
 
 A partial implementation of our statement above is given in `src/constraints.rs` in the `PossessionCircuit::generate_constraints` method. Of the three tests in that file, currently 2 fail. Go ahead and run `cargo test` to see the failures.
@@ -69,9 +67,9 @@ The first two problems will require you to add some code to `PossessionCircuit::
 
 ## Problem 1: Proving commitment opening in ZK
 
-Currently, the `note_soundness` test fails. This test checks that `PossessionCircuit` actually proves knowledge of the opening to the card commitment. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random opening to a card commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
+Currently, the `card_soundness` test fails. This test checks that `PossessionCircuit` actually proves knowledge of the opening to the card commitment. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random opening to a card commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
 
-Write below `CHECK #1` a few lines of code that enforce the equality that the claimed card commitment equals the commitment of the secret card inputs. The file will have more detail on how to do this. Ensure that the `note_soundness` test passes.
+Write below `CHECK #1` a few lines of code that enforce the equality that the claimed card commitment equals the commitment of the secret card inputs. The file will have more detail on how to do this. Ensure that the `card_soundness` test passes.
 
 ## Problem 2: Proving Merkle tree membership in ZK
 

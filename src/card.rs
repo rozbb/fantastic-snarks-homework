@@ -18,14 +18,14 @@ use rand::Rng;
 // NATIVE IMPLEMENTATIONS
 //
 
-/// A spendable "note". The leaves in our tree are note commitments.
+/// A baseball card. The leaves in our tree are card commitments.
 #[derive(Clone, CanonicalSerialize)]
-pub struct Note {
-    pub amount: F,
-    pub nullifier: F,
+pub struct Card {
+    pub purchase_price: F,
+    pub serial_num: F,
 }
 
-impl Note {
+impl Card {
     /// Commits to `(self.amount, self.nullifier)` using `nonce` as the nonce. Concretely, this
     /// computes `Hash(nonce || amount || nulifier)`
     pub fn commit(&self, leaf_crh_params: &<LeafHash as CRHScheme>::Parameters, nonce: &F) -> Leaf {
@@ -35,7 +35,7 @@ impl Note {
         // Serialize the nonce
         nonce.serialize_uncompressed(&mut buf).unwrap();
 
-        // Now serialize the note
+        // Now serialize the card
         self.serialize_uncompressed(&mut buf).unwrap();
 
         // Now compute Hash(nonce || amount || nulifier)
@@ -48,12 +48,12 @@ impl Note {
     }
 }
 
-// Helpful for testing. This lets you generate a random Note.
-impl UniformRand for Note {
+// Helpful for testing. This lets you generate a random Card.
+impl UniformRand for Card {
     fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Note {
-            amount: F::rand(rng),
-            nullifier: F::rand(rng),
+        Card {
+            purchase_price: F::rand(rng),
+            serial_num: F::rand(rng),
         }
     }
 }
@@ -62,23 +62,23 @@ impl UniformRand for Note {
 // R1CS IMPLEMENTATIONS
 //
 
-/// R1CS representation of Note
-pub struct NoteVar {
+/// R1CS representation of Card
+pub struct CardVar {
     pub amount: FV,
     pub nullifier: FV,
 }
 
-/// Defines a way to serialize a NoteVar to bytes. This is only works if it is identical to the
-/// `impl CanonicalSerialize for Note` serialization.
-impl ToBytesGadget<F> for NoteVar {
+/// Defines a way to serialize a CardVar to bytes. This is only works if it is identical to the
+/// `impl CanonicalSerialize for Card` serialization.
+impl ToBytesGadget<F> for CardVar {
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         // Serialize self.amount then self.nullifier
         Ok([self.amount.to_bytes()?, self.nullifier.to_bytes()?].concat())
     }
 }
 
-impl NoteVar {
-    /// Commits to this note using the given nonce. Concretely, this computes `Hash(nonce ||
+impl CardVar {
+    /// Commits to this card using the given nonce. Concretely, this computes `Hash(nonce ||
     /// self.amount || self.nullifier)`.
     pub fn commit(
         &self,
@@ -86,8 +86,8 @@ impl NoteVar {
         nonce: &FV,
     ) -> Result<Vec<UInt8<F>>, SynthesisError> {
         let nonce_bytes = nonce.to_bytes()?;
-        let note_bytes = self.to_bytes()?;
-        let hash = LeafHashGadget::evaluate(&hash_params, &[nonce_bytes, note_bytes].concat())?;
+        let card_bytes = self.to_bytes()?;
+        let hash = LeafHashGadget::evaluate(&hash_params, &[nonce_bytes, card_bytes].concat())?;
         hash.to_bytes()
     }
 }
