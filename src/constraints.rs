@@ -85,7 +85,7 @@ impl ConstraintSynthesizer<F> for PossessionCircuit {
         // Put the pieces of our card together into a CardVar
         let card_var = CardVar {
             amount: card_purchase_price,
-            nullifier: card_serial_num,
+            serial_num: card_serial_num,
         };
 
         // CHECK #1: Card opening.

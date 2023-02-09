@@ -69,19 +69,21 @@ The first two problems will require you to add some code to `PossessionCircuit::
 
 Currently, the `card_soundness` test fails. This test checks that `PossessionCircuit` actually proves knowledge of the opening to the card commitment. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random opening to a card commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
 
-Write below `CHECK #1` a few lines of code that enforce the equality that the claimed card commitment equals the commitment of the secret card inputs. The file will have more detail on how to do this. Ensure that the `card_soundness` test passes.
+Write below `CHECK #1` a few lines of code that enforce the equality that the claimed card commitment equals the commitment of the secret card inputs. Ensure that the `card_soundness` test passes.
+
+_Hint:_ Take a look at `src/card.rs`, and the [`EqGadget`](https://docs.rs/ark-r1cs-std/0.4.0/ark_r1cs_std/eq/trait.EqGadget.html) trait.
 
 ## Problem 2: Proving Merkle tree membership in ZK
 
 Currently, the `tree_soundness` test fails. This test checks that `PossessionCircuit` actually proves that the claimed card commitment appears in the Merkle tree. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random Merkle root. The reason the test currently fails is because no tree membership check is performed in `generate_constraints`.
 
-Write below `CHECK #2` a few lines of code that enforce leaf membership in the Merkle tree. The file will have more detail on how to do this. Ensure that the `tree_soundness` test passes.
+Write below `CHECK #2` a few lines of code that enforce leaf membership in the Merkle tree. Ensure that the `tree_soundness` test passes.
 
-**TODO:** Put more comments describing what to do in these checks
+_Hint:_ take a look at [`PathVar`](https://github.com/arkworks-rs/crypto-primitives/blob/4b3bdac16443096b26426673bff409d4e78eec94/src/merkle_tree/constraints.rs).
 
 ## Problem 3: Groth16 proofs
 
-Up until now we've just been symbolically executing the circuits. In reality, we want collectors to compute their proof and give it, along with their nullifier, to Lloyd's. This involves a few steps:
+Up until now we've just been symbolically executing the circuits. In reality, we want collectors to compute their proof and give it, along with their serial number, to Lloyd's. This involves a few steps:
 
 1. Lloyd's will generate the CRS for `PossessionCircuit`, and their Pedersen hash constants, and publish both.
 2. Collectors will prove ownership of their card and send the proof and commitment back to Lloyd's.

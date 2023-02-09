@@ -26,7 +26,7 @@ pub struct Card {
 }
 
 impl Card {
-    /// Commits to `(self.amount, self.nullifier)` using `nonce` as the nonce. Concretely, this
+    /// Commits to `(self.amount, self.serial_num)` using `nonce` as the nonce. Concretely, this
     /// computes `Hash(nonce || amount || nulifier)`
     pub fn commit(&self, leaf_crh_params: &<LeafHash as CRHScheme>::Parameters, nonce: &F) -> Leaf {
         // This will be the buffer we feed into the hash function
@@ -65,21 +65,21 @@ impl UniformRand for Card {
 /// R1CS representation of Card
 pub struct CardVar {
     pub amount: FV,
-    pub nullifier: FV,
+    pub serial_num: FV,
 }
 
 /// Defines a way to serialize a CardVar to bytes. This is only works if it is identical to the
 /// `impl CanonicalSerialize for Card` serialization.
 impl ToBytesGadget<F> for CardVar {
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
-        // Serialize self.amount then self.nullifier
-        Ok([self.amount.to_bytes()?, self.nullifier.to_bytes()?].concat())
+        // Serialize self.amount then self.serial_num
+        Ok([self.amount.to_bytes()?, self.serial_num.to_bytes()?].concat())
     }
 }
 
 impl CardVar {
     /// Commits to this card using the given nonce. Concretely, this computes `Hash(nonce ||
-    /// self.amount || self.nullifier)`.
+    /// self.amount || self.serial_num)`.
     pub fn commit(
         &self,
         hash_params: &LeafHashParamsVar,

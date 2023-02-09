@@ -25,7 +25,7 @@ type F = <E as Pairing>::ScalarField;
 fn gen_proof_package(
     circuit: &PossessionCircuit,
     root: &MerkleRoot,
-    nullifier: &F,
+    serial_num: &F,
     claimed_leaf: &[u8],
 ) -> Option<(ark_groth16::ProvingKey<E>, ark_groth16::Proof<E>, Vec<F>)> {
     let mut rng = rand::thread_rng();
@@ -37,7 +37,7 @@ fn gen_proof_package(
     // Serialize the public inputs that the verifier will use
     let public_inputs = [
         root.to_field_elements().unwrap(),
-        nullifier.to_field_elements().unwrap(),
+        serial_num.to_field_elements().unwrap(),
         claimed_leaf.to_field_elements().unwrap(),
     ]
     .concat();
