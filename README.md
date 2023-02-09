@@ -86,34 +86,32 @@ _Hint:_ take a look at [`PathVar`](https://github.com/arkworks-rs/crypto-primiti
 
 Up until now we've just been symbolically executing the circuits. In reality, we want collectors to compute their proof and give it, along with their serial number, to Lloyd's. This involves a few steps:
 
-1. Lloyd's will generate the CRS for `PossessionCircuit`, and their Pedersen hash constants, and publish both.
+1. Lloyd's will generate the proving key for `PossessionCircuit`, and their Pedersen hash constants, and publish both.
 2. Collectors will prove ownership of their card and send the proof and commitment back to Lloyd's.
 3. Lloyd's will check the proofs with respect to the public input
 
-For the sake of simplicity, we will assume everyone has a copy of the same Merkle tree, which we generate in TODO
+For the sake of simplicity, we will assume everyone has a copy of the same Merkle tree, which we generate in `src/util.rs`.
 
 For each of the steps above, we have defined an executable file in the `src/bin/` directory. To run the binary, do `cargo run --release --bin BINARYNAME`. E.g., to run `src/bin/prove.rs` do `cargo run --release --bin prove`.
 
 Your job in this assignment is to:
 
-1. Fill in the portions of `bin/gen_params.rs` marked `todo!()`. This executable generates the Pedersen hash constants as well as the `PossessionCircuit` CRS and put them in `pedersen_params.bin` and `burn_crs.bin`, respectively.
-2. Fill in the portions of  `bin/prove.rs` marked `todo!()`. This executable uses the above two files, as well as knowledge of a card, to create a Groth16 proof and output it and the circuit's public inputs to `proof.bin` and `pubinputs.bin`, respectively.
-3. Fill in the portions of `bin/verify.rs` marked `todo!()`. This executable uses the above four files to verify the Groth16 proof.
+1. Fill in the portions of `bin/gen_params.rs` marked `todo!()`. This executable generates the Pedersen hash constants as well as the `PossessionCircuit` proving key and verifying key. It writes them to `pedersen_params.bin`, `possession_proving_key.bin`, and `possession_verifying_key.bin`, respectively.
+2. Fill in the portions of  `bin/prove.rs` marked `todo!()`. This executable uses the above two files, as well as knowledge of a card, to create a Groth16 proof. It writes the proof and the card's serial number to to `possession_proof.bin` and `possession_revealed_serial.bin`, respectively.
+3. Fill in the portions of `bin/verify.rs` marked `todo!()`. This executable uses the above files to verify the Groth16 proof.
 
 Tip: if you remove the `--release` flag, proving will be slower, but it will also be easier to debug, as the proof compiler will be able to catch when you're trying to prove something that's false.
 
-**TODO:** Write these files
+**TODO:** Snip out portions of these files
 
 ## Problem 4: Revealing purchase price
 
 Lloyd's has changed their policy. They now require everyone to reveal the purchase price of their card.
 
-1. Copy `src/constraints.rs` to a new file `src/constraints_showprice.rs`. Similarly, copy `src/bin/{gen_params.rs, prove.rs, verify.rs}` to `src/bin/{gen_params_showprice.rs, prove_showprice.rs, verify_showprice.rs}`.
+1. Copy `src/constraints.rs` to a new file `src/constraints_showprice.rs`. Similarly, copy `src/bin/{gen_params.rs, prove.rs, verify.rs}` to `src/bin/{gen_params_showprice.rs, prove_showprice.rs, verify_showprice.rs}`. Also, make new filenames in `src/util.rs` like `POSSESSION_SHOWPRICE_PK_FILENAME` etc.
 2. Modify `constraints_showprice::PossessionCircuit` to have `purchase_price` as a _public input_ rather than a private one.
-3. Modify the remaining files to treat `purchase_price` as a public input value.
+3. Modify the remaining files to treat `purchase_price` as a public input value. Also use the new filenames so there's no accidental collision with the previously defined circuits. You can reuse Pedersen params.
 4. Make sure that param generation, proving, and verification all succeed.
-
-**TODO:** Make a binary helpers file that contains Merkle tree info as well as filenames. Include instructions to use different filenames for the `showprice` version of proofs
 
 # Acknowledgements
 
