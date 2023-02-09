@@ -1,4 +1,4 @@
-pub mod common;
+pub mod util;
 
 pub mod card;
 pub mod constraints;

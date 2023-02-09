@@ -116,7 +116,7 @@ impl ConstraintSynthesizer<F> for PossessionCircuit {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::common::{gen_test_tree, get_test_card, get_test_leaf};
+    use crate::util::{gen_test_tree, get_test_card, get_test_leaf};
 
     use ark_bls12_381::Fr as F;
     use ark_ff::UniformRand;

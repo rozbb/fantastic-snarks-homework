@@ -1,11 +1,11 @@
 use arkworks_merkle_tree_example::{
-    common::{
-        gen_test_tree, write_to_file, PEDERSEN_PARAMS_FILENAME, POSSESSION_PK_FILENAME,
-        POSSESSION_VK_FILENAME,
-    },
     constraints::PossessionCircuit,
     hash::{LeafHash, TwoToOneHash},
     merkle::{Leaf, MerkleRoot},
+    util::{
+        gen_test_tree, write_to_file, PEDERSEN_PARAMS_FILENAME, POSSESSION_PK_FILENAME,
+        POSSESSION_VK_FILENAME,
+    },
     E, F,
 };
 

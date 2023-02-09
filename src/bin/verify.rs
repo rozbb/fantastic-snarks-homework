@@ -1,5 +1,5 @@
 use arkworks_merkle_tree_example::{
-    common::{
+    util::{
         gen_test_tree, read_from_file, PEDERSEN_PARAMS_FILENAME, POSSESSION_PROOF_FILENAME,
         POSSESSION_REVEALED_SERIAL_FILENAME, POSSESSION_VK_FILENAME,
     },

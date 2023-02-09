@@ -1,10 +1,10 @@
 use arkworks_merkle_tree_example::{
-    common::{
+    constraints::PossessionCircuit,
+    util::{
         gen_test_tree, get_test_card, get_test_leaf, read_from_file, write_to_file,
         PEDERSEN_PARAMS_FILENAME, POSSESSION_PK_FILENAME, POSSESSION_PROOF_FILENAME,
         POSSESSION_REVEALED_SERIAL_FILENAME, POSSESSION_VK_FILENAME,
     },
-    constraints::PossessionCircuit,
     E,
 };
 
