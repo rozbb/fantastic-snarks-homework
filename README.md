@@ -6,12 +6,24 @@ Our goal is to familiarize ourselves with the workflow of writing zero-knowledge
 
 # Using Rust
 
+[Install Rust.](https://www.rust-lang.org/learn/get-started)
+
 If you are new to Rust, check out [this meta-guide](https://gist.github.com/noxasaxon/7bf5ebf930e281529161e51cd221cf8a). The most important thing to do first is the "Getting Started + Installation" Beyond this, I don't have a specific recommendation of tutorial, so I recommend you pick whatever suits your current comfort level and play with that. I'm looking for feedback here, so keep in mind what tutorials you tried and liked as well as disliked.
 
-We strongly encourage you to use an IDE for this project. Whatever IDE you pick (e.g., Visual Code, Sublime, Neovim, Emacs), we recommend the following add-ons
+We strongly encourage you to use an IDE for this project. Whatever IDE you pick (e.g., Visual Code, Sublime, Neovim, Emacs), we recommend you install the `rust-analyzer` add-on. This will show you errors in the source code itself, which will save you from having to go back and forth between your editor and your `cargo test` output. It will also let you do language-level things like renaming variables, jumping to definitions, etc.
 
-* Language Server Protocol (LSP) — This lets you work directly with the semantics of a language. Arkworks is not the best documented library, and sometimes it is easiest to just use LSP to jump to the definition of a `struct` in order to find out what methods it exposes. card some IDEs come with this built in, though they may require a specific installation to support Rust.
-* `rust-analyzer` — This will show you errors in the source code itself, which will save you from having to go back and forth between your editor and your `cargo test` output
+## Navigating code and documentation
+
+The canonical documentation site for all Rust crates is [docs.rs](https://docs.rs). If it exists, the docs are on docs.rs. But Arkworks is not the best documented library, and sometimes it is easiest to just use your IDE to jump to the definition of a struct or a trait in order to find out what methods it exposes. This will be your superpower.
+
+## Getting help
+
+Rust has a very large online community, and there are tons of channels to get help. Very few people actually know anything about arkworks, so if you want answers, you should probably stick with language-level questions.
+
+* [Rust Discord](https://discord.gg/rust-lang)
+* [Rust Zulip](https://rust-lang.zulipchat.com/)
+* Unofficial Rust Matrix Chat - `#rust:matrix.org`
+* Unofficial Rust IRC - `##rust` on [LiberaChat](https://libera.chat/)
 
 # Cryptographic preliminaries
 
