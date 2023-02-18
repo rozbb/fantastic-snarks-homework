@@ -44,6 +44,7 @@ Some inputs will be constans, i.e., fixed by the circuit.  For Groth16, there is
 
 
 # Intro
+In this assignment, you will build a toy zcash light scheme for manipulating commitments in a merkle tree. In this case, the objects will be baseball cards.
 
 A baseball card is a tuple which contains `(purchase_price, serial_num)`, i.e., the dollar amount that the card was bought for, and the serial number printed on it. There is a public ledger, represented as a Merkle tree, whose leaves are all the known authentic baseball cards, appearing in order of time of purchase. In order to hide the potentially sensitive values of these cards, we make the leaves _card commitments_, i.e., values of the form `Com((purchase_price, serial_num); nonce)`.
 
