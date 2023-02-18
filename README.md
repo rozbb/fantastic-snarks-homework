@@ -38,13 +38,10 @@ A quick overview of the cryptographic components we use.
 
 An example of a secure commitment scheme is `Com(val; nonce) = Hash(nonce || val)` where `Hash` is a cryptographically secure hash function with certain properties (i.e., it is not vulnerable to length extension; so pick anything besides MD5, SHA-1, SHA-256 or SHA-512).
 
-**TODO**:
 
-  * what is a circuit
-  * crs/proving key
-  * constant
-  * public input
-  * private input ("witnesses")
+Recall that the proof systems we use take an arithmetic circuit representing a computation that has private inputs (AKA the witness) and public inputs. 
+Some inputs will be constans, i.e., fixed by the circuit.  For Groth16, there is a circuit specific proving key (aka evaluation key) used by the prover and a circuit specific verification key. Your task is to assemble circuits that realize commitments, merkle trees, etc into a particular application.
+
 
 # Intro
 
