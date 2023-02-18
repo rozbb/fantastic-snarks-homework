@@ -30,7 +30,7 @@ Rust has a very large online community, and there are tons of channels to get he
 A quick overview of the cryptographic components we use.
 
 1. We model our public ledger as a Merkle tree. See [here](https://pangea.cloud/docs/audit/merkle-trees) for a short overview on Merkle trees and tree membership proofs (aka _authentication paths_).
-2. The leaves of our Merkle tree are _cryptographic commitments_. We denote by `c = Com(val; nonce)` a commitment to the value `val`, using the _nonce_ (aka randomness) `nonce`. We say that `(val, nonce)` is the _opening_ of `c`. In order to be secure, a commitment scheme must be:
+2. The leaves of our Merkle tree are _cryptographic commitments_. We denote by `c = Com(val; nonce)` a commitment to the value `val`, using the _nonce_ (aka a random value) `nonce`. We say that `(val, nonce)` is the _opening_ of `c`. In order to be secure, a commitment scheme must be:
     * Binding - This means that a commitment cannot be opened to a different value other than what was originally committed to. Concretely, if `c = Com(val; nonce)` for some `val, nonce`, and someone produces `val', nonce'` such that `c = Com(val'; nonce')`, then it must be the case that `val' = val` and `nonce' = nonce`.
     * Hiding - This means that a commitment should say nothing about what is committed. In other words, for any choices of `val, val'` it should be impossible for an adversary to tell whether a given commitment `c` commits to `val` or `val'` (assuming the nonce is uniformly sampled).
 
