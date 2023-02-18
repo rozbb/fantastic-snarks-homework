@@ -25,6 +25,8 @@ Rust has a very large online community, and there are tons of channels to get he
 * Unofficial Rust Matrix Chat - `#rust:matrix.org`
 * Unofficial Rust IRC - `##rust` on [LiberaChat](https://libera.chat/)
 
+Note: If you are reading this again because you are hitting a problem,  at this point you may wish this assignment was not in rust. The alternative wasone of a a few special purpose language for snarks. They are slightly simpler. But there is no community to ask for help at all.
+
 # Cryptographic preliminaries
 
 A quick overview of the cryptographic components we use.
