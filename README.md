@@ -103,14 +103,14 @@ Once you've done the problems (and optional extra credit), you will **submit you
 
 ## Problem 1: Proving commitment opening in ZK
 
-Currently, the `card_soundness` test fails. This test checks that `PossessionCircuit` actually proves knowledge of the opening to the card commitment. Concretely, it checks that `PossessionCircuit` is not satisfied if you give it any random opening to a card commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
+We want to make sure that `PossessionCircuit` actually proves knowledge of the opening to the card commitment. To that end `card_soundness` test in `src/constraints.rs` checks that `PossessionCircuit` is not satisfied if you give it any random opening to a card commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
 
 Fill in the code that goes below `CHECK #1`. This code should:
 
 1. compute the commitment of `card_var`,
 2. enforce that the resulting commitment equals the claimed commitment.
 
-Once this is done, you can run `cargo test`. You will know you got it right when the `card_soundness` test passes. The `tree_soundness` test should still fail though.
+Once this is done, you can run `cargo test`. You will know you got it right when the `card_soundness` test passes. The `tree_soundness` test will still fail though (see next problem).
 
 _Hint 1:_ `card_var` already has a way of computing the commitment. Look at `src/card.rs`.
 
@@ -118,7 +118,7 @@ _Hint 2:_ You need the circuit to enforce that two things are equal. Take a look
 
 ## Problem 2: Proving Merkle tree membership in ZK
 
-Currently, the `tree_soundness` test fails. This test checks that `PossessionCircuit` actually proves that the claimed card commitment appears in the Merkle tree. Concretely, it checks that `PossessionCircuit` is not satisfied if you give it any random Merkle root. The reason the test currently fails is because no tree membership check is performed in `generate_constraints`.
+We want to make sure that `PossessionCircuit` actually proves that the claimed card commitment appears in the Merkle tree. To that end, the `tree_soundness` test in `src/constraints.rs` checks that `PossessionCircuit` is not satisfied if you give it any random Merkle root. The reason the test currently fails is because no tree membership check is performed in `generate_constraints`.
 
 Fill in the code that goes below `CHECK #2`. This code should:
 
