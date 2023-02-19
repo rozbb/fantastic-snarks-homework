@@ -126,9 +126,8 @@ This will correspond to our files in the `src/bin/` directory. Specifically:
 * `src/bin/prove.rs` — This will use the above data, plus some secret knowledge about a card and its position in the Merkle tree, to create a Groth16 proof. It writes the proof and the card's serial number to `possession_proof.bin` and `possession_revealed_serial.bin`, respectively.
 * `src/bin/verify.rs` — This will use the revealed serial number public knowledge of a Merkle root to verify the Groth16 proof computed above.
 
-For the sake of simplicity,
-**we will assume everyone has a copy of the same Merkle tree,**
-which we generate in `src/util.rs`.
+For the sake of simplicity, we have hard-coded a Merkle tree in `src/util.rs`.
+**We will assume everyone has a copy of the same Merkle tree.**
 
 ### Problem 3.1: Generate params
 
@@ -136,7 +135,7 @@ The first step to deploying a proof system is to generate all the public values.
 Generating the Groth16 proving/verifying keys of a circuit is a little bit easier than actually proving something. You're not proving anything yet, you're just defining the structure of the proof.
 So, in `gen_params.rs`, rather than constructing a circuit which is actually satisfied, we only need to construct a circuit _with the same shape_ as the circuit we want satisfied. Concretely, this means that we can take a `PossessionCircuit` and fill it with arbitrary values, so long as they have right type/size as the values we want to use. Note: we still must give it the correct constants, because those values are baked into the circuit and cannot change in the future.
 
-The task in this assignment is simply: make up some arbitrary values and stick them into the `PossessionCircuit` definition in `src/bin/gen_params.rs` in the appropriate place. These locations are marked with `todo!()`. Once you're done, the following command should succceed:
+Your task is to make up some arbitrary values and stick them into the `PossessionCircuit` definition in `src/bin/gen_params.rs` in the appropriate place. These locations are marked with `todo!()`. Once you're done, the following command should succeed:
 ```
 cargo run --release --bin gen_params
 ```
@@ -145,6 +144,31 @@ This will panic and abort until all `todo!()`s are filled in.
 Tip: if you remove the `--release` flag, proving will be slower, but it will also be easier to debug, as the proof compiler will be able to catch when you're trying to prove something that's false.
 
 _Hint:_ The field element type `F` implements [`UniformRand`](https://docs.rs/ark-ff/0.3.0/ark_ff/trait.UniformRand.html#tymethod.rand). It also implements [`Default`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html).
+
+### Problem 3.2: Prove possession
+
+This is the meat of the proof system. We must use the proving key, known public constants, and private inputs in order to generate a proof of possession of a baseball card. In this case, the private info ("witnesses") is the nonce for committing to the card and the Merkle authentication path proving membership in the tree. The proof will also be accompanied by whatever public inputs are necessary. In this case, the prover is revealing the card's serial number. The proof will be saved in `possession_proof.bin` and the now-public serial will be saved in `possession_revealed_serial.bin`.
+
+Your task is to fill in the `todo!()` items in `src/bin/prove.rs` in order to make the proving procedure succeed. There's only one line of computation here, and a few lines of filling in values. Remember, the things that go into the `PossessionCircuit` here are not like before: they MUST be values that make the circuit succeed. Once you're done, the following command should succeed:
+```
+cargo run --release --bin prove
+```
+If you want to check if you're proving an invalid statement, remove the `--release` flag.
+
+_Hint:_ You will need to make a [Merkle authentication path](https://github.com/arkworks-rs/crypto-primitives/blob/4b3bdac16443096b26426673bff409d4e78eec94/src/merkle_tree/mod.rs#L338). You already have the `tree`.
+
+_Note:_ Look at how `public_inputs` are generated in this file. Everything ends up being represented as field elements in order for our proof system to work. You'll have to change this line in the extra credit.
+
+### Problem 3.3 Verify possession
+
+The final step is for Lloyd's to verify the proofs that have been generated. Lloyd's verifier will use the known, public Merkle root and the claimed serial number in order to determine whether the Groth16 proof is valid.
+
+Verification is probably the simplest of the steps. For this problem, just fill out the single `todo!()` in `src/bin/verify.rs. You will have to serialize the public input to field elements, just like the prover did. Once you're done, the following command should succeed, and output "Proof verified successfully":
+```
+cargo run --release --bin verify
+```
+
+_Hint:_ Look how `prove.rs` defined `public_inputs`.
 
 ## Problem 4: Revealing purchase price
 
