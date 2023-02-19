@@ -98,12 +98,6 @@ fn main() {
     // Create the proof
     println!("Proving...");
     let proof = create_random_proof(circuit.clone(), &pk, &mut rng).unwrap();
-    // Serialize the public inputs that the verifier will use
-    let public_inputs = [
-        root.to_field_elements().unwrap(),
-        card.serial_num.to_field_elements().unwrap(),
-    ]
-    .concat();
 
     //
     // Wrap-up
@@ -111,6 +105,11 @@ fn main() {
 
     // Verify the proof package. This should succeed
     let vk = read_from_file(POSSESSION_VK_FILENAME);
+    let public_inputs = [
+        root.to_field_elements().unwrap(),
+        card.serial_num.to_field_elements().unwrap(),
+    ]
+    .concat();
     assert!(
         verify_proof(&vk, &proof, &public_inputs).unwrap(),
         "honest proof failed to verify with supplied verifying key"
