@@ -190,14 +190,22 @@ cargo run --release --bin verify -- \
 
 _Hint:_ Look how `prove.rs` defined `public_inputs`.
 
-## Problem 4: Revealing purchase price
+## Extra credit: Revealing purchase price
 
-Lloyd's has changed their policy. They now require everyone to reveal the purchase price of their card.
+Lloyd's has changed their policy. They now require everyone to reveal the purchase price of their card. You will have to modify the entire proof system to have the purchase price as a public value. This is a lot of work! You'll need to:
 
-1. Copy `src/constraints.rs` to a new file `src/constraints_showprice.rs`. Similarly, copy `src/bin/{gen_params.rs, prove.rs, verify.rs}` to `src/bin/{gen_params_showprice.rs, prove_showprice.rs, verify_showprice.rs}`. Also, make new filenames in `src/util.rs` like `POSSESSION_SHOWPRICE_PK_FILENAME` etc.
-2. Modify `constraints_showprice::PossessionCircuit` to have `purchase_price` as a _public input_ rather than a private one.
-3. Modify the remaining files to treat `purchase_price` as a public input value. Also use the new filenames so there's no accidental collision with the previously defined circuits. You can reuse Pedersen params.
-4. Make sure that param generation, proving, and verification all succeed.
+1. update `PossessionCircuit` to _input_ (rather than _witness_) the purchase price.
+2. update `src/bin/prove.rs` to output the purchase price in addition to everything else
+3. update `src/bin/verify.rs` to read this tuple and use it as public input for verification
+
+In this extra credit, you do just that:
+
+1. Copy `src/constraints.rs` to `src/constraints_showprice.rs` and put `mod constraints_showprice` in `lib.rs`. Rename the `PossessionCircuit` to `PossessionShowPriceCircuit`. Modify `PossessionShowAmtCircuit` to use `card_purchase_price` as a public input rather than a witness. This should not require updating tests.
+2. Copy `src/bin/gen_params.rs` to `src/bin/gen_params_showprice`. Make it use `PossessionShowPriceCircuit`. Its output files should not clash with the normal `gen_params.rs`, so make it output the proving/verifying keys to `possession_showamt_proving_key.bin` and `possession_showamt_verifying_key.bin`. You don't need to change the Pedersen params filename. They are the same.
+3. Copy `src/bin/prove.rs` to `src/bin/prove_showprice.rs`. Make it use `PossessionShowPriceCircuit`. It should take in the file produced in the previous step. The prover should output the purchase price to `possession_purchase_price.bin`, and its proof to `possession_showprice_proof.bin`. The rest can stay the same if you want.
+4. Copy `src/bin/verify.rs` to `src/bin/verify_showprice.rs`. Make it use `PossessionShowPriceCircuit`. It should take in the proof generated above, as well as all the public inputs, PLUS the new public input in `possession_purchase_price.bin` (you'll have to edit the command line arg parsing routine for this). It should use the purchase price as public input for verification.
+
+Once you're done, the verify command should output "Prove verified successfully."
 
 # Acknowledgements
 
