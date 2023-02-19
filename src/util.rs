@@ -23,6 +23,7 @@ pub const PEDERSEN_PARAMS_FILENAME: &str = "pedersen_params.bin";
 
 /// A helper function that deterministically creates 16 baseball cards and their nonces
 fn all_cards() -> Vec<(Card, F)> {
+    // Use a deterministic RNG
     let mut rng = ark_std::test_rng();
 
     core::iter::repeat_with(|| {

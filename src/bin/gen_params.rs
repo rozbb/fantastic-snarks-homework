@@ -12,18 +12,18 @@ use arkworks_merkle_tree_example::{
 use ark_crypto_primitives::crh::{CRHScheme, TwoToOneCRHScheme};
 use ark_ff::UniformRand;
 use ark_groth16::{generate_random_parameters, prepare_verifying_key, ProvingKey};
-use rand::RngCore;
 
 fn main() {
-    let mut rng = rand::thread_rng();
+    // Use a deterministic RNG
+    let mut rng = ark_std::test_rng();
 
     //
     // First step is to generate the Pedersen hashing parameters
     //
 
     // Sample the Pedersen params randomly
-    let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
     let two_to_one_crh_params = <TwoToOneHash as TwoToOneCRHScheme>::setup(&mut rng).unwrap();
+    let leaf_crh_params = <LeafHash as CRHScheme>::setup(&mut rng).unwrap();
 
     // Write the CRH params to a file
     write_to_file(

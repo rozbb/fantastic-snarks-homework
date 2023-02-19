@@ -140,6 +140,7 @@ This will correspond to our files in the `src/bin/` directory. Specifically:
 
 For the sake of simplicity, we have hard-coded a Merkle tree in `src/util.rs`.
 **We will assume everyone has a copy of the same Merkle tree.**
+The Merkle root, which we will pass to the prover and verifier, is represented in base32 as `f5pj64oh3m6anguhjb5rhfugwe44ximao17ya3wgx1fbmg1iobmo`.
 
 ### Problem 3.1: Generate params
 
@@ -163,9 +164,13 @@ This is the meat of the proof system. We must use the proving key, known public 
 
 Your task is to fill in the `todo!()` items in `src/bin/prove.rs` in order to make the proving procedure succeed. There's only one line of computation here, and a few lines of filling in values. Remember, the things that go into the `PossessionCircuit` here are not like before: they MUST be values that make the circuit succeed. Once you're done, the following command should succeed:
 ```
-cargo run --release --bin prove
+cargo run --release --bin prove -- \
+    pedersen_params.bin \
+    possession_proving_key.bin \
+    f5pj64oh3m6anguhjb5rhfugwe44ximao17ya3wgx1fbmg1iobmo
 ```
-If you want to check if you're proving an invalid statement, remove the `--release` flag.
+(note the `\` just tells your terminal that the command continues on the next line.)
+If you want to check if you're proving an invalid statement, remove the `--release` flag. This will save you lots of headaches for the next problem. If you're trying to verify a false statement, you're gonna have a bad time.
 
 _Hint:_ You will need to make a [Merkle authentication path](https://github.com/arkworks-rs/crypto-primitives/blob/4b3bdac16443096b26426673bff409d4e78eec94/src/merkle_tree/mod.rs#L338). You already have the `tree`.
 
@@ -177,7 +182,11 @@ The final step is for Lloyd's to verify the proofs that have been generated. Llo
 
 Verification is probably the simplest of the steps. For this problem, just fill out the single `todo!()` in `src/bin/verify.rs. You will have to serialize the public input to field elements, just like the prover did. Once you're done, the following command should succeed, and output "Proof verified successfully":
 ```
-cargo run --release --bin verify
+cargo run --release --bin verify -- \
+    possession_verifying_key.bin \
+    possession_proof.bin \
+    possession_revealed_serial.bin \
+    f5pj64oh3m6anguhjb5rhfugwe44ximao17ya3wgx1fbmg1iobmo
 ```
 
 _Hint:_ Look how `prove.rs` defined `public_inputs`.
