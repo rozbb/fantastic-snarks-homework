@@ -76,7 +76,8 @@ impl ConstraintSynthesizer<F> for PossessionCircuit {
         // Commitment nonce
         let nonce_var = FV::new_witness(ns!(cs, "card nonce"), || Ok(&self.card_nonce))?;
         // Merkle authentication path
-        let path = SimplePathVar::new_witness(ns!(cs, "merkle path"), || Ok(&self.auth_path))?;
+        let auth_path_var =
+            SimplePathVar::new_witness(ns!(cs, "merkle path"), || Ok(&self.auth_path))?;
 
         //
         // Ok everything has been inputted. Now we do the logic of the circuit.
@@ -101,7 +102,7 @@ impl ConstraintSynthesizer<F> for PossessionCircuit {
         // is equal to the publicly known root.
         let leaf_var = claimed_card_com_var;
         let computed_root_var =
-            path.calculate_root(&leaf_crh_params, &two_to_one_crh_params, &leaf_var)?;
+            auth_path_var.calculate_root(&leaf_crh_params, &two_to_one_crh_params, &leaf_var)?;
         computed_root_var.enforce_equal(&claimed_root_var)?;
 
         // All done with the checks

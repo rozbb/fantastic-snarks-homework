@@ -44,11 +44,11 @@ Note: If you are reading this again because you are hitting a problem, at this p
 A quick overview of the cryptographic components we use.
 
 1. We model our public ledger as a Merkle tree. See [here](https://pangea.cloud/docs/audit/merkle-trees) for a short overview on Merkle trees and tree membership proofs (aka _authentication paths_).
-2. The leaves of our Merkle tree are _cryptographic commitments_. We denote by `c = Com(val; nonce)` a commitment to the value `val`, using the _nonce_ (aka a random value) `nonce`. We say that `(val, nonce)` is the _opening_ of `c`. In order to be secure, a commitment scheme must be:
-    * Binding - This means that a commitment cannot be opened to a different value other than what was originally committed to. Concretely, if `c = Com(val; nonce)` for some `val, nonce`, and someone produces `val', nonce'` such that `c = Com(val'; nonce')`, then it must be the case that `val' = val` and `nonce' = nonce`.
-    * Hiding - This means that a commitment should say nothing about what is committed. In other words, for any choices of `val, val'` it should be impossible for an adversary to tell whether a given commitment `c` commits to `val` or `val'` (assuming the nonce is uniformly sampled).
+2. The leaves of our Merkle tree are _cryptographic commitments_. We denote by `c = Com(val; com_rand)` a commitment to the value `val`, using the _commitment randomness_ `com_rand`. We say that `(val, com_rand)` is the _opening_ of `c`. In order to be secure, a commitment scheme must be:
+    * Binding - This means that a commitment cannot be opened to a different value other than what was originally committed to. Concretely, if `c = Com(val; com_rand)` for some `val, com_rand`, and someone produces `val', com_rand'` such that `c = Com(val'; com_rand')`, then it must be the case that `val' = val` and `com_rand' = com_rand`.
+    * Hiding - This means that a commitment should say nothing about what is committed. In other words, for any choices of `val, val'` it should be impossible for an adversary to tell whether a given commitment `c` commits to `val` or `val'` (assuming the com_rand is sampled uniformly).
 
-An example of a secure commitment scheme is `Com(val; nonce) = Hash(nonce || val)` where `Hash` is a cryptographically secure hash function with certain properties (i.e., it is not vulnerable to length extension; so pick anything besides MD5, SHA-1, SHA-256 or SHA-512).
+An example of a secure commitment scheme is `Com(val; com_rand) = Hash(com_rand || val)` where `Hash` is a cryptographically secure hash function with certain properties (i.e., it is not vulnerable to length extension; so pick anything besides MD5, SHA-1, SHA-256 or SHA-512).
 
 
 Recall that the proof systems we use take an arithmetic circuit representing a computation that has private inputs (AKA the witness) and public inputs. 
@@ -58,7 +58,7 @@ Some inputs will be constans, i.e., fixed by the circuit.  For Groth16, there is
 # Intro
 In this assignment, you will build a toy zcash-esque scheme for manipulating commitments in a Merkle tree. In this case, the objects will be baseball cards.
 
-A baseball card is a tuple which contains `(purchase_price, serial_num)`, i.e., the dollar amount that the card was bought for, and the serial number printed on it. There is a public ledger, represented as a Merkle tree, whose leaves are all the known authentic baseball cards, appearing in order of time of purchase. In order to hide the potentially sensitive values of these cards, we make the leaves _card commitments_, i.e., values of the form `Com((purchase_price, serial_num); nonce)`.
+A baseball card is a tuple which contains `(purchase_price, serial_num)`, i.e., the dollar amount that the card was bought for, and the serial number printed on it. There is a public ledger, represented as a Merkle tree, whose leaves are all the known authentic baseball cards, appearing in order of time of purchase. In order to hide the potentially sensitive values of these cards, we make the leaves _card commitments_, i.e., values of the form `Com((purchase_price, serial_num); com_rand)`.
 
 ```
       G = root
@@ -68,17 +68,17 @@ A baseball card is a tuple which contains `(purchase_price, serial_num)`, i.e., 
 A   B  C   D
 
 where
-    A = Com((amt1, serial1); nonce1)
-    B = Com((amt2, serial2); nonce2)
-    C = Com((amt3, serial3); nonce3)
-    D = Com((amt4, serial4); nonce4)
+    A = Com((amt1, serial1); com_rand1)
+    B = Com((amt2, serial2); com_rand2)
+    C = Com((amt3, serial3); com_rand3)
+    D = Com((amt4, serial4); com_rand4)
 ```
 
 Now suppose every card is a collector's item. They are quite rare. Lloyd's of Linden (a New Jersey-based "insurance" company) is giving out a certificate of authenticity to anyone who can prove possession of a card. According to Lloyd's a collector _possesses_ a card if and only if they can prove that they know the card commitment's opening, and that that commitment is in the Merkle tree. Proving this to Lloyd's has some complications, though.
 
-The first issue is privacy. Obviously, simply revealing this information outright would leak both the position of the card in the tree (ie when the collector got the card) and the amount contained in the card. Neither of these are strictly necessary for Lloyd's to know. The solution here is to instead use a zero-knowledge proof: "I know an `amount`, `serial_num`, and `nonce` such that `Com((amount, serial_num); nonce)` appears in the Merkle tree."
+The first issue is privacy. Obviously, simply revealing this information outright would leak both the position of the card in the tree (ie when the collector got the card) and the amount contained in the card. Neither of these are strictly necessary for Lloyd's to know. The solution here is to instead use a zero-knowledge proof: "I know an `amount`, `serial_num`, and `com_rand` such that `Com((amount, serial_num); com_rand)` appears in the Merkle tree."
 
-The second issue (which is caused by our solution to the first issue) is double-counting. As stated, there's no way for Lloyd's to tell if someone sent them 50 proofs for the same exact card. It should be the case that every card gets at most 1 certificate of authenticity. The solution we will use is to force a collector to reveal the serial number when presenting a proof of membership. In other words, the zero-knowledge proof statement is now "I know an `amount` and `nonce` such that `Com((amount, serial_num); nonce)` appears in the Merkle tree", where `serial_num` is known to both the prover and verifier.
+The second issue (which is caused by our solution to the first issue) is double-counting. As stated, there's no way for Lloyd's to tell if someone sent them 50 proofs for the same exact card. It should be the case that every card gets at most 1 certificate of authenticity. The solution we will use is to force a collector to reveal the serial number when presenting a proof of membership. In other words, the zero-knowledge proof statement is now "I know an `amount` and `com_rand` such that `Com((amount, serial_num); com_rand)` appears in the Merkle tree", where `serial_num` is known to both the prover and verifier.
 
 Our final proof statement has two steps: proving knowledge of an opening to a commitment, and proving membership in a Merkle tree. We will step through how each of these works in the Arkworks zero-knowledge proof ecosystem.
 
@@ -98,19 +98,31 @@ Once you've done the problems (and optional extra credit), you will **submit you
 
 ## Problem 1: Proving commitment opening in ZK
 
-Currently, the `card_soundness` test fails. This test checks that `PossessionCircuit` actually proves knowledge of the opening to the card commitment. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random opening to a card commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
+Currently, the `card_soundness` test fails. This test checks that `PossessionCircuit` actually proves knowledge of the opening to the card commitment. Concretely, it checks that `PossessionCircuit` is not satisfied if you give it any random opening to a card commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
 
-Write below `CHECK #1` a few lines of code that enforce the equality that the claimed card commitment equals the commitment of the secret card inputs. Ensure that the `card_soundness` test passes.
+Fill in the `todo!()`s below `CHECK #1`. This code should:
 
-_Hint:_ Take a look at `src/card.rs`, and the [`EqGadget`](https://docs.rs/ark-r1cs-std/0.4.0/ark_r1cs_std/eq/trait.EqGadget.html) trait.
+1. compute the commitment of `card_var`,
+2. enforce that the resulting commitment equals the claimed commitment.
+
+Once this is done, ensure the `card_soundness` test passes.
+
+_Hint 1:_ `card_var` already has a way of computing the commitment. Look at `src/card.rs`.
+
+_Hint 2:_ You need the circuit to enforce that two things are equal. Take a look at the [`EqGadget::enforce_equal`](https://docs.rs/ark-r1cs-std/0.4.0/ark_r1cs_std/eq/trait.EqGadget.html#method.enforce_equal). Most types we care about implement `EqGadget`.
 
 ## Problem 2: Proving Merkle tree membership in ZK
 
-Currently, the `tree_soundness` test fails. This test checks that `PossessionCircuit` actually proves that the claimed card commitment appears in the Merkle tree. Concretely, it checks that `BurnCircuit` is not satisfied if you give it any random Merkle root. The reason the test currently fails is because no tree membership check is performed in `generate_constraints`.
+Currently, the `tree_soundness` test fails. This test checks that `PossessionCircuit` actually proves that the claimed card commitment appears in the Merkle tree. Concretely, it checks that `PossessionCircuit` is not satisfied if you give it any random Merkle root. The reason the test currently fails is because no tree membership check is performed in `generate_constraints`.
 
-Write below `CHECK #2` a few lines of code that enforce leaf membership in the Merkle tree. Ensure that the `tree_soundness` test passes.
+Fill in the `todo!()`s below `CHECK #2`. This code should:
 
-_Hint:_ take a look at [`PathVar`](https://github.com/arkworks-rs/crypto-primitives/blob/4b3bdac16443096b26426673bff409d4e78eec94/src/merkle_tree/constraints.rs).
+1. compute the root node of the Merkle authentication path,
+2. enforce that the resulting value equals the publicly known Merkle root.
+
+Once this is done, ensure the `tree_soundness` test passes.
+
+_Hint:_ `auth_path_var` already has a way of computing the root. See [`here`](https://github.com/arkworks-rs/crypto-primitives/blob/4b3bdac16443096b26426673bff409d4e78eec94/src/merkle_tree/constraints.rs#L191).
 
 ## Problem 3: Groth16 proofs
 
@@ -147,7 +159,7 @@ _Hint:_ The field element type `F` implements [`UniformRand`](https://docs.rs/ar
 
 ### Problem 3.2: Prove possession
 
-This is the meat of the proof system. We must use the proving key, known public constants, and private inputs in order to generate a proof of possession of a baseball card. In this case, the private info ("witnesses") is the nonce for committing to the card and the Merkle authentication path proving membership in the tree. The proof will also be accompanied by whatever public inputs are necessary. In this case, the prover is revealing the card's serial number. The proof will be saved in `possession_proof.bin` and the now-public serial will be saved in `possession_revealed_serial.bin`.
+This is the meat of the proof system. We must use the proving key, known public constants, and private inputs in order to generate a proof of possession of a baseball card. In this case, the private info ("witnesses") is the commitment randomness for committing to the card and the Merkle authentication path proving membership in the tree. The proof will also be accompanied by whatever public inputs are necessary. In this case, the prover is revealing the card's serial number. The proof will be saved in `possession_proof.bin` and the now-public serial will be saved in `possession_revealed_serial.bin`.
 
 Your task is to fill in the `todo!()` items in `src/bin/prove.rs` in order to make the proving procedure succeed. There's only one line of computation here, and a few lines of filling in values. Remember, the things that go into the `PossessionCircuit` here are not like before: they MUST be values that make the circuit succeed. Once you're done, the following command should succeed:
 ```
