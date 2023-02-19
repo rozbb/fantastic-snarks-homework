@@ -38,11 +38,7 @@ fn main() {
     //
 
     // Make a uniform leaf
-    let random_leaf = {
-        let mut buf: Leaf = [0u8; 64];
-        rng.fill_bytes(&mut buf);
-        buf.to_vec()
-    };
+    let zero_leaf: Leaf = [0u8; 64];
     // To make a correctly sized auth path, we make a Merkle tree of the same size as our test
     // tree, and create an auth path for any arbitrary index
     let random_auth_path = {
@@ -58,7 +54,7 @@ fn main() {
 
         // Public inputs to the circuit
         root: MerkleRoot::rand(&mut rng),
-        leaf: random_leaf,
+        leaf: zero_leaf.to_vec(),
         card_serial_num: F::rand(&mut rng),
 
         // Witness to membership

@@ -8,7 +8,13 @@ Our goal is to familiarize ourselves with the workflow of writing zero-knowledge
 
 [Install Rust.](https://www.rust-lang.org/learn/get-started)
 
-If you are new to Rust, check out [this meta-guide](https://gist.github.com/noxasaxon/7bf5ebf930e281529161e51cd221cf8a). The most important thing to do first is the "Getting Started + Installation" Beyond this, I don't have a specific recommendation of tutorial, so I recommend you pick whatever suits your current comfort level and play with that. I'm looking for feedback here, so keep in mind what tutorials you tried and liked as well as disliked.
+If you're familiar with other languages and want a crash course in Rust, I like [this](https://fasterthanli.me/articles/a-half-hour-to-learn-rust) tutorial. Beyond this, I don't have specific recommendations. This [meta-guide](https://gist.github.com/noxasaxon/7bf5ebf930e281529161e51cd221cf8a) has lots of resources for people of all incoming skill levels. Pick whatever suits your current comfort level and play with that. I'm looking for feedback here, so keep in mind what tutorials you tried and liked and disliked.
+
+For this assignment, it will be helpful to be comfortable with:
+
+* The [`Result`](https://doc.rust-lang.org/stable/rust-by-example/error/result.html) type (including `unwrap()` and the `?` operator)
+* [Structs](https://doc.rust-lang.org/book/ch05-01-defining-structs.html)
+* [Traits](https://doc.rust-lang.org/book/ch10-02-traits.html)
 
 We strongly encourage you to use an IDE for this project. Whatever IDE you pick (e.g., Visual Code, Sublime, Neovim, Emacs), we recommend you install the `rust-analyzer` add-on. This will show you errors in the source code itself, which will save you from having to go back and forth between your editor and your `cargo test` output. It will also let you do language-level things like renaming variables, jumping to definitions, etc.
 
@@ -18,14 +24,20 @@ The canonical documentation site for all Rust crates is [docs.rs](https://docs.r
 
 ## Getting help
 
-Rust has a very large online community, and there are tons of channels to get help. Very few people actually know anything about arkworks, so if you want answers, you should probably stick with language-level questions.
+Rust has a very large online community, and there are tons of channels to get help. Very few people actually know anything about Arkworks, so if you want answers, you should probably stick with language-level questions.
 
 * [Rust Discord](https://discord.gg/rust-lang)
 * [Rust Zulip](https://rust-lang.zulipchat.com/)
 * Unofficial Rust Matrix Chat - `#rust:matrix.org`
 * Unofficial Rust IRC - `##rust` on [LiberaChat](https://libera.chat/)
 
-Note: If you are reading this again because you are hitting a problem,  at this point you may wish this assignment was not in rust. The alternative wasone of a a few special purpose language for snarks. They are slightly simpler. But there is no community to ask for help at all.
+Standard messaging etiquette applies:
+
+1. Do not ask to ask a question. Just ask.
+2. State your problem as clearly as possible. Ideally, reduce your problem to a minimum failing testcase, ie a small snippet of valid code that exemplifies your problem, and fails in the same way your real code fails. The [Rust Playground](https://play.rust-lang.org) is a nice place to to construct a minimum failing testcase and share a link to.
+3. Do not spam the channel. It may take a while to get an answer. If it has been a long time since you asked and you've gotten no response, a single "bump" message is appropriate.
+
+Note: If you are reading this again because you are hitting a problem, at this point you may wish this assignment was not in Rust. The alternative was one of a few special purpose language for SNARKs. They are slightly simpler. But there is no community to ask for help at all.
 
 # Cryptographic preliminaries
 
@@ -44,7 +56,7 @@ Some inputs will be constans, i.e., fixed by the circuit.  For Groth16, there is
 
 
 # Intro
-In this assignment, you will build a toy zcash light scheme for manipulating commitments in a merkle tree. In this case, the objects will be baseball cards.
+In this assignment, you will build a toy zcash-esque scheme for manipulating commitments in a Merkle tree. In this case, the objects will be baseball cards.
 
 A baseball card is a tuple which contains `(purchase_price, serial_num)`, i.e., the dollar amount that the card was bought for, and the serial number printed on it. There is a public ledger, represented as a Merkle tree, whose leaves are all the known authentic baseball cards, appearing in order of time of purchase. In order to hide the potentially sensitive values of these cards, we make the leaves _card commitments_, i.e., values of the form `Com((purchase_price, serial_num); nonce)`.
 
@@ -68,7 +80,7 @@ The first issue is privacy. Obviously, simply revealing this information outrigh
 
 The second issue (which is caused by our solution to the first issue) is double-counting. As stated, there's no way for Lloyd's to tell if someone sent them 50 proofs for the same exact card. It should be the case that every card gets at most 1 certificate of authenticity. The solution we will use is to force a collector to reveal the serial number when presenting a proof of membership. In other words, the zero-knowledge proof statement is now "I know an `amount` and `nonce` such that `Com((amount, serial_num); nonce)` appears in the Merkle tree", where `serial_num` is known to both the prover and verifier.
 
-Our final proof statement has two steps: proving knowledge of an opening to a commitment, and proving membership in a Merkle tree. We will step through how each of these works in the arkworks zero-knowledge proof ecosystem.
+Our final proof statement has two steps: proving knowledge of an opening to a commitment, and proving membership in a Merkle tree. We will step through how each of these works in the Arkworks zero-knowledge proof ecosystem.
 
 # Assignment
 
@@ -76,7 +88,13 @@ A partial implementation of our statement above is given in `src/constraints.rs`
 
 There's plenty of other files in `src/` as well. Peak around and see what they're doing. Hopefully the comments, as well as your code-jumping IDE will give you an idea of what's happening. For example `src/lib.rs` has a nice native code example in `test_merkle_tree`. In this example, we create a bunch of random cards, and then make those leaves in a Merkle tree (using a Pedersen hash function). We then check that a claimed path for some leaf corresponds to a given root. In this assignment we will do this, and more, in zero-knowledge.
 
-The first two problems will require you to add some code to `PossessionCircuit::generate_constraints`.
+The first two problems will require you to add some code to the `PossessionCircuit::generate_constraints` method.
+
+## How to submit
+
+Once you've done the problems (and optional extra credit), you will **submit your homework by zipping the `src/` folder and uploading the zip file to ELMS.** I should be able to unzip your submission into a fresh repo, and run `cargo test` and all the `cargo run` commands to check that everything is correct.
+
+**Do NOT zip the entire assignment folder.** I do not want 40MB of garbage partial build files.
 
 ## Problem 1: Proving commitment opening in ZK
 
@@ -102,19 +120,31 @@ Up until now we've just been symbolically executing the circuits. In reality, we
 2. Collectors will prove ownership of their card and send the proof and commitment back to Lloyd's.
 3. Lloyd's will check the proofs with respect to the public input
 
-For the sake of simplicity, we will assume everyone has a copy of the same Merkle tree, which we generate in `src/util.rs`.
+This will correspond to our files in the `src/bin/` directory. Specifically:
 
-For each of the steps above, we have defined an executable file in the `src/bin/` directory. To run the binary, do `cargo run --release --bin BINARYNAME`. E.g., to run `src/bin/prove.rs` do `cargo run --release --bin prove`.
+* `src/bin/gen_params.rs` — This will generate the hashing parameters as well as the proving and verifying key of our circuit. It will write these to `pedersen_params.bin`, `possession_proving_key.bin`, and `possession_verifying_key`, respectively.
+* `src/bin/prove.rs` — This will use the above data, plus some secret knowledge about a card and its position in the Merkle tree, to create a Groth16 proof. It writes the proof and the card's serial number to `possession_proof.bin` and `possession_revealed_serial.bin`, respectively.
+* `src/bin/verify.rs` — This will use the revealed serial number public knowledge of a Merkle root to verify the Groth16 proof computed above.
 
-Your job in this assignment is to:
+For the sake of simplicity,
+**we will assume everyone has a copy of the same Merkle tree,**
+which we generate in `src/util.rs`.
 
-1. Fill in the portions of `bin/gen_params.rs` marked `todo!()`. This executable generates the Pedersen hash constants as well as the `PossessionCircuit` proving key and verifying key. It writes them to `pedersen_params.bin`, `possession_proving_key.bin`, and `possession_verifying_key.bin`, respectively.
-2. Fill in the portions of  `bin/prove.rs` marked `todo!()`. This executable uses the above two files, as well as knowledge of a card, to create a Groth16 proof. It writes the proof and the card's serial number to to `possession_proof.bin` and `possession_revealed_serial.bin`, respectively.
-3. Fill in the portions of `bin/verify.rs` marked `todo!()`. This executable uses the above files to verify the Groth16 proof.
+### Problem 3.1: Generate params
+
+The first step to deploying a proof system is to generate all the public values. This is includes: the details of the hash function we're using, the Groth16 proving key, and the Groth16 verifying key.
+Generating the Groth16 proving/verifying keys of a circuit is a little bit easier than actually proving something. You're not proving anything yet, you're just defining the structure of the proof.
+So, in `gen_params.rs`, rather than constructing a circuit which is actually satisfied, we only need to construct a circuit _with the same shape_ as the circuit we want satisfied. Concretely, this means that we can take a `PossessionCircuit` and fill it with arbitrary values, so long as they have right type/size as the values we want to use. Note: we still must give it the correct constants, because those values are baked into the circuit and cannot change in the future.
+
+The task in this assignment is simply: make up some arbitrary values and stick them into the `PossessionCircuit` definition in `src/bin/gen_params.rs` in the appropriate place. These locations are marked with `todo!()`. Once you're done, the following command should succceed:
+```
+cargo run --release --bin gen_params
+```
+This will panic and abort until all `todo!()`s are filled in.
 
 Tip: if you remove the `--release` flag, proving will be slower, but it will also be easier to debug, as the proof compiler will be able to catch when you're trying to prove something that's false.
 
-**TODO:** Snip out portions of these files
+_Hint:_ The field element type `F` implements [`UniformRand`](https://docs.rs/ark-ff/0.3.0/ark_ff/trait.UniformRand.html#tymethod.rand). It also implements [`Default`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html).
 
 ## Problem 4: Revealing purchase price
 
@@ -128,32 +158,3 @@ Lloyd's has changed their policy. They now require everyone to reveal the purcha
 # Acknowledgements
 
 This exercise was adapted from the [arkworks Merkle tree exercise](https://github.com/arkworks-rs/r1cs-tutorial/tree/5d3a9022fb6deade245505748fd661278e9c0ff9/merkle-tree-example), originally written by Pratyush Mishra.
-
----
-
-# OLD CONTENT
-
-```rust
-let claimed_note_com_var = UInt8::new_input_vec(ns!(cs, "note com"), &self.leaf)?;
-```
-
-
-### Writing constraints to check Merkle tree paths
-
-We'll be adding our constraints in `src/constraints.rs`, inside the function `generate_constraints`. Recall that our task is to check that the prover knows a valid membership path for a given leaf inside a Merkle tree with a given root.
-
-We start by allocating the Merkle tree root `root` as a public input variable:
-```rust
-let claimed_root_var =
-    <RootVar as AllocVar<MerkleRoot, _>>::new_input(ns!(cs, "root"), || Ok(&self.root))?;
-```
-Let's go over this incantation part-by-part.
-* `RootVar` is a [type alias](https://doc.rust-lang.org/book/ch19-04-advanced-types.html#creating-type-synonyms-with-type-aliases) for the output of the hash function used in the Merkle tree.
-* [`AllocVar`](https://docs.rs/ark-r1cs-std/0.4.0/ark_r1cs_std/alloc/trait.AllocVar.html) is a trait that describes how to allocate values for the circuit (ie as a circuit constant, as a public input, or as a private input).
-* `new_input` is a method in `AllocVar` that reserves variables corresponding to the root. The variables are reserved as public inputs, as the root is a public input against which we'll check the private path.
-    * The [`ns!`](https://docs.rs/ark-relations/0.4.0/ark_relations/macro.ns.html) macro enters a new namespace in the constraint system, with the aim of making it easier to identify failing constraints when debugging.
-    * The closure `|| Ok(self.root)` provides an (optional) assignment to the variables reserved by `new_input`. The closure is invoked only if we need the assignment. For example, it is not invoked during SNARK setup.
-
-We similarly allocate the card commitment as a public input variable, allocate the card amount and nonce as private input variables, and allocate the parameters of the hash as "constants" in the constraint system. This means that these parameters are "baked" into the constraint system when it is created, and changing these parameters would result in a different constraint system. Finally, we allocate the membership path as a private witness variable.
-
-Now, we must  fill in the blanks by adding constraints to check the membership path. Go ahead and follow the hint in `constraints.rs` to complete this task.
