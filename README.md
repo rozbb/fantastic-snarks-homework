@@ -34,7 +34,7 @@ Rust has a very large online community, and there are tons of channels to get he
 Standard messaging etiquette applies:
 
 1. Do not ask to ask a question. Just ask.
-2. State your problem as clearly as possible. Ideally, reduce your problem to a minimum failing testcase, ie a small snippet of valid code that exemplifies your problem, and fails in the same way your real code fails. The [Rust Playground](https://play.rust-lang.org) is a nice place to to construct a minimum failing testcase and share a link to.
+2. State your problem as clearly as possible. Ideally, reduce your problem to a minimum failing testcase, i.e., a small snippet of valid code that exemplifies your problem, and fails in the same way your real code fails. The [Rust Playground](https://play.rust-lang.org) is a nice place to to construct a minimum failing testcase and share a link to.
 3. Do not spam the channel. It may take a while to get an answer. If it has been a long time since you asked and you've gotten no response, a single "bump" message is appropriate.
 
 Note: If you are reading this again because you are hitting a problem, at this point you may wish this assignment was not in Rust. The alternative was one of a few special purpose language for SNARKs. They are slightly simpler. But there is no community to ask for help at all.
@@ -50,9 +50,8 @@ A quick overview of the cryptographic components we use.
 
 An example of a secure commitment scheme is `Com(val; com_rand) = Hash(com_rand || val)` where `Hash` is a cryptographically secure hash function with certain properties (i.e., it is not vulnerable to length extension; so pick anything besides MD5, SHA-1, SHA-256 or SHA-512).
 
-
-Recall that the proof systems we use take an arithmetic circuit representing a computation that has private inputs (AKA the witness) and public inputs. 
-Some inputs will be constans, i.e., fixed by the circuit.  For Groth16, there is a circuit specific proving key (aka evaluation key) used by the prover and a circuit specific verification key. Your task is to assemble circuits that realize commitments, merkle trees, etc into a particular application.
+Recall that the proof systems we use take an arithmetic circuit representing a computation that has private inputs, aka the _witness_, and public inputs.
+Some inputs will be constants, i.e., fixed by the circuit. For Groth16, there is a circuit-specific _proving key_ (aka evaluation key) used by the prover, and a circuit-specific _verification key_. Your task is to assemble circuits that realize commitments, Merkle trees, etc. into a particular application.
 
 
 # Intro
@@ -76,7 +75,7 @@ where
 
 Now suppose every card is a collector's item. They are quite rare. Lloyd's of Linden (a New Jersey-based "insurance" company) is giving out a certificate of authenticity to anyone who can prove possession of a card. According to Lloyd's a collector _possesses_ a card if and only if they can prove that they know the card commitment's opening, and that that commitment is in the Merkle tree. Proving this to Lloyd's has some complications, though.
 
-The first issue is privacy. Obviously, simply revealing this information outright would leak both the position of the card in the tree (ie when the collector got the card) and the amount contained in the card. Neither of these are strictly necessary for Lloyd's to know. The solution here is to instead use a zero-knowledge proof: "I know an `amount`, `serial_num`, and `com_rand` such that `Com((amount, serial_num); com_rand)` appears in the Merkle tree."
+The first issue is privacy. Obviously, simply revealing this information outright would leak both the position of the card in the tree (i.e., when the collector got the card) and the amount contained in the card. Neither of these are strictly necessary for Lloyd's to know. The solution here is to instead use a zero-knowledge proof: "I know an `amount`, `serial_num`, and `com_rand` such that `Com((amount, serial_num); com_rand)` appears in the Merkle tree."
 
 The second issue (which is caused by our solution to the first issue) is double-counting. As stated, there's no way for Lloyd's to tell if someone sent them 50 proofs for the same exact card. It should be the case that every card gets at most 1 certificate of authenticity. The solution we will use is to force a collector to reveal the serial number when presenting a proof of membership. In other words, the zero-knowledge proof statement is now "I know an `amount` and `com_rand` such that `Com((amount, serial_num); com_rand)` appears in the Merkle tree", where `serial_num` is known to both the prover and verifier.
 
