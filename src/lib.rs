@@ -40,8 +40,8 @@ fn test_merkle_tree() {
     let num_leaves = 16;
     let leaves: Vec<_> = core::iter::repeat_with(|| {
         let card = Card::rand(&mut rng);
-        let card_nonce = F::rand(&mut rng);
-        card.commit(&leaf_crh_params, &card_nonce)
+        let card_com_rand = F::rand(&mut rng);
+        card.commit(&leaf_crh_params, &card_com_rand)
     })
     .take(num_leaves)
     .collect();

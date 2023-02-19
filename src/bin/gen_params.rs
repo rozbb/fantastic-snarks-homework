@@ -60,7 +60,7 @@ fn main() {
         // Witness to membership
         auth_path: todo!(), // This is an auth path. We've already made an auth path above
         // Commitment opening details
-        card_nonce: todo!(),          // Another field elememnt
+        card_com_rand: todo!(),       // Another field elememnt
         card_purchase_price: todo!(), // Another field element
     };
 

@@ -83,7 +83,7 @@ Our final proof statement has two steps: proving knowledge of an opening to a co
 
 # Assignment
 
-A partial implementation of our statement above is given in `src/constraints.rs` in the `PossessionCircuit::generate_constraints` method. Of the three tests in that file, currently 2 fail. Go ahead and run `cargo test` to see the failures.
+A partial implementation of our statement above is given in `src/constraints.rs` in the `PossessionCircuit::generate_constraints` method. Of the three tests in that file, currently 2 fail.
 
 There's plenty of other files in `src/` as well. Peak around and see what they're doing. Hopefully the comments, as well as your code-jumping IDE will give you an idea of what's happening. For example `src/lib.rs` has a nice native code example in `test_merkle_tree`. In this example, we create a bunch of random cards, and then make those leaves in a Merkle tree (using a Pedersen hash function). We then check that a claimed path for some leaf corresponds to a given root. In this assignment we will do this, and more, in zero-knowledge.
 
@@ -102,12 +102,12 @@ Once you've done the problems (and optional extra credit), you will **submit you
 
 Currently, the `card_soundness` test fails. This test checks that `PossessionCircuit` actually proves knowledge of the opening to the card commitment. Concretely, it checks that `PossessionCircuit` is not satisfied if you give it any random opening to a card commitment. The reason the test currently fails is because no commitment opening check is performed in `gneerate_constraints`.
 
-Fill in the `todo!()`s below `CHECK #1`. This code should:
+Fill in the code that goes below `CHECK #1`. This code should:
 
 1. compute the commitment of `card_var`,
 2. enforce that the resulting commitment equals the claimed commitment.
 
-Once this is done, ensure the `card_soundness` test passes.
+Once this is done, you can run `cargo test`. You will know you got it right when the `card_soundness` test passes. The `tree_soundness` test should still fail though.
 
 _Hint 1:_ `card_var` already has a way of computing the commitment. Look at `src/card.rs`.
 
@@ -117,12 +117,12 @@ _Hint 2:_ You need the circuit to enforce that two things are equal. Take a look
 
 Currently, the `tree_soundness` test fails. This test checks that `PossessionCircuit` actually proves that the claimed card commitment appears in the Merkle tree. Concretely, it checks that `PossessionCircuit` is not satisfied if you give it any random Merkle root. The reason the test currently fails is because no tree membership check is performed in `generate_constraints`.
 
-Fill in the `todo!()`s below `CHECK #2`. This code should:
+Fill in the code that goes below `CHECK #2`. This code should:
 
 1. compute the root node of the Merkle authentication path,
 2. enforce that the resulting value equals the publicly known Merkle root.
 
-Once this is done, ensure the `tree_soundness` test passes.
+Once this is done, ensure the `tree_soundness` test passes. Now, `cargo test` should be all successes.
 
 _Hint:_ `auth_path_var` already has a way of computing the root. See [`here`](https://github.com/arkworks-rs/crypto-primitives/blob/4b3bdac16443096b26426673bff409d4e78eec94/src/merkle_tree/constraints.rs#L191).
 

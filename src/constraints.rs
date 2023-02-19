@@ -34,8 +34,8 @@ pub struct PossessionCircuit {
     // Private inputs (aka "witnesses") for the circuit
     /// The amount the card was purchased for
     pub card_purchase_price: F,
-    /// The private nonce (i.e. randomness) used to commit to the card
-    pub card_nonce: F,
+    /// The private randomness used to commit to the card
+    pub card_com_rand: F,
     /// The merkle authentication path. Assuming the hash we use is secure, this path is proof that
     /// the committed leaf is in the tree.
     pub auth_path: SimplePath,
@@ -73,8 +73,8 @@ impl ConstraintSynthesizer<F> for PossessionCircuit {
         // The amount the card was purchase for
         let card_purchase_price =
             FV::new_witness(ns!(cs, "purchase price"), || Ok(&self.card_purchase_price))?;
-        // Commitment nonce
-        let nonce_var = FV::new_witness(ns!(cs, "card nonce"), || Ok(&self.card_nonce))?;
+        // Commitment randomness
+        let com_rand_var = FV::new_witness(ns!(cs, "card com_rand"), || Ok(&self.card_com_rand))?;
         // Merkle authentication path
         let auth_path_var =
             SimplePathVar::new_witness(ns!(cs, "merkle path"), || Ok(&self.auth_path))?;
@@ -91,15 +91,15 @@ impl ConstraintSynthesizer<F> for PossessionCircuit {
 
         // CHECK #1: Card opening.
         // We "open" the card commitment here. Concretely, we compute the commitment of our
-        // card_var using nonce_var. We then assert that this value is equal to the publicly known
-        // commitment.
+        // card_var using com_rand_var. We then assert that this value is equal to the publicly
+        // known commitment.
         // let computed_card_com_var = ...
         // other code goes here
 
         // CHECK #2: Membership test.
-        // We prove membership of the nonce commitment in the Merkle tree. Concretely, we use the
-        // leaf from above and path_var to recompute the Merkle root. We then assert that this root
-        // is equal to the publicly known root.
+        // We prove membership of the commitment in the Merkle tree. Concretely, we use the leaf
+        // from above and path_var to recompute the Merkle root. We then assert that this root is
+        // equal to the publicly known root.
         let leaf_var = claimed_card_com_var;
         // let computed_root_var = ...
         // other code goes here
@@ -137,7 +137,7 @@ mod test {
         let correct_root = tree.root();
         // Also imagine we possess the card that appears at index 7 in the tree
         let our_idx = 7;
-        let (card, card_nonce) = get_test_card(our_idx);
+        let (card, card_com_rand) = get_test_card(our_idx);
 
         //
         // Proof construction
@@ -165,7 +165,7 @@ mod test {
             // Private inputs
             auth_path,
             card_purchase_price: card.purchase_price,
-            card_nonce,
+            card_com_rand,
         }
     }
 
