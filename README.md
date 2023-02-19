@@ -91,7 +91,10 @@ The first two problems will require you to add some code to the `PossessionCircu
 
 ## How to submit
 
-Once you've done the problems (and optional extra credit), you will **submit your homework by zipping the `src/` folder and uploading the zip file to ELMS.** I should be able to unzip your submission into a fresh repo, and run `cargo test` and all the `cargo run` commands to check that everything is correct.
+Once you've done the problems (and optional extra credit), you will **submit your homework as follows:**
+
+1. Make a text file called `extra_credit.txt` and put it in the `src/` folder. In the text file, tell me how much (if any) of the extra credit you did (steps 1-4). I will not check your extra credit if you do not write this.
+2. Zip the `src/` folder and upload the zip file to ELMS. I should be able to unzip your submission into a fresh repo, and run `cargo test` and all the `cargo run` commands to check that everything is correct.
 
 **Do NOT zip the entire assignment folder.** I do not want 40MB of garbage partial build files.
 
