@@ -75,7 +75,7 @@ fn main() {
     let claimed_leaf = &get_test_leaf(&leaf_crh_params, idx_to_prove);
 
     // Generate an authentication path for our leaf
-    let auth_path = tree.generate_proof(idx_to_prove).unwrap();
+    let auth_path = todo!(); // Generate an authentication path for idx_to_prove
 
     // We now have everything we need to build the PossessionCircuit
     let circuit = PossessionCircuit {
@@ -84,15 +84,15 @@ fn main() {
         two_to_one_crh_params,
 
         // Public inputs to the circuit
-        root,
+        root: todo!(), // The merkle root,
         leaf: claimed_leaf.to_vec(),
-        card_serial_num: card.serial_num,
+        card_serial_num: todo!(), // The card's serial
 
         // Witness to membership
-        auth_path,
+        auth_path: todo!(), // The merkle authentication path
         // Commitment opening details
-        card_nonce,
-        card_purchase_price: card.purchase_price,
+        card_nonce: todo!(),          // The card's nonce
+        card_purchase_price: todo!(), // The cards' purchase price
     };
 
     // Create the proof

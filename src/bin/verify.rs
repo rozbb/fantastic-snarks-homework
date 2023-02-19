@@ -50,11 +50,7 @@ fn main() {
     //
 
     // Serialize everything to field elements
-    let public_inputs = [
-        given_merkle_root.to_field_elements().unwrap(),
-        card_serial.to_field_elements().unwrap(),
-    ]
-    .concat();
+    let public_inputs: Vec<_> = todo!(); // Do the same thing that was done in prove.rs
 
     //
     // Verify the proof

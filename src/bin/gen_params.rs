@@ -55,13 +55,13 @@ fn main() {
         // Public inputs to the circuit
         root: MerkleRoot::rand(&mut rng),
         leaf: zero_leaf.to_vec(),
-        card_serial_num: F::rand(&mut rng),
+        card_serial_num: todo!(), // This is a field element. You can fill in ANY F value you want
 
         // Witness to membership
-        auth_path: random_auth_path,
+        auth_path: todo!(), // This is an auth path. We've already made an auth path above
         // Commitment opening details
-        card_nonce: F::rand(&mut rng),
-        card_purchase_price: F::rand(&mut rng),
+        card_nonce: todo!(),          // Another field elememnt
+        card_purchase_price: todo!(), // Another field element
     };
 
     // Generate the Groth16 proving and verifying key and write to files

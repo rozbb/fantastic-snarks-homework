@@ -93,17 +93,16 @@ impl ConstraintSynthesizer<F> for PossessionCircuit {
         // We "open" the card commitment here. Concretely, we compute the commitment of our
         // card_var using nonce_var. We then assert that this value is equal to the publicly known
         // commitment.
-        let computed_card_com_var = card_var.commit(&leaf_crh_params, &nonce_var)?;
-        computed_card_com_var.enforce_equal(&claimed_card_com_var)?;
+        let computed_card_com_var = todo!(); // Compute the commitment to card_var
+        todo!(); // Enforce that computed_card_com_var equals claimed_card_com_var
 
         // CHECK #2: Membership test.
         // We prove membership of the nonce commitment in the Merkle tree. Concretely, we use the
         // leaf from above and path_var to recompute the Merkle root. We then assert that this root
         // is equal to the publicly known root.
         let leaf_var = claimed_card_com_var;
-        let computed_root_var =
-            auth_path_var.calculate_root(&leaf_crh_params, &two_to_one_crh_params, &leaf_var)?;
-        computed_root_var.enforce_equal(&claimed_root_var)?;
+        let computed_root_var = todo!(); // Compute the Merkle root from auth_path_var
+        todo!(); // Enforce that computed_root_var equals claimed_root_var
 
         // All done with the checks
         Ok(())
