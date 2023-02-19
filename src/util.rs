@@ -21,15 +21,16 @@ pub const POSSESSION_REVEALED_SERIAL_FILENAME: &str = "possession_revealed_seria
 
 pub const PEDERSEN_PARAMS_FILENAME: &str = "pedersen_params.bin";
 
-/// A helper function that deterministically creates 16 baseball cards and their nonces
+/// A helper function that deterministically creates 16 baseball cards and their commitment
+/// randomness
 fn all_cards() -> Vec<(Card, F)> {
     // Use a deterministic RNG
     let mut rng = ark_std::test_rng();
 
     core::iter::repeat_with(|| {
         let card = Card::rand(&mut rng);
-        let card_nonce = F::rand(&mut rng);
-        (card, card_nonce)
+        let card_com_rand = F::rand(&mut rng);
+        (card, card_com_rand)
     })
     .take(16)
     .collect()
@@ -42,7 +43,7 @@ pub fn gen_test_tree(
 ) -> SimpleMerkleTree {
     let leaves: Vec<Leaf> = all_cards()
         .into_iter()
-        .map(|(card, nonce)| card.commit(&leaf_crh_params, &nonce))
+        .map(|(card, com_rand)| card.commit(&leaf_crh_params, &com_rand))
         .collect();
 
     SimpleMerkleTree::new(&leaf_crh_params, &two_to_one_crh_params, leaves).unwrap()
@@ -51,11 +52,11 @@ pub fn gen_test_tree(
 /// Unfortuantely you can't get leaves out of trees, so we need a separate function for returning
 /// the i-th leaf.
 pub fn get_test_leaf(leaf_crh_params: &LeafHashParams, i: usize) -> Leaf {
-    let (card, nonce) = all_cards().get(i).unwrap().clone();
-    card.commit(&leaf_crh_params, &nonce)
+    let (card, com_rand) = all_cards().get(i).unwrap().clone();
+    card.commit(&leaf_crh_params, &com_rand)
 }
 
-/// Returns the i-th card and nonce in the test tree.
+/// Returns the i-th card and commitment randomness in the test tree.
 pub fn get_test_card(i: usize) -> (Card, F) {
     all_cards().get(i).unwrap().clone()
 }

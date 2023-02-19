@@ -64,7 +64,7 @@ fn main() {
     );
     // Also imagine we possess the card that appears at index 7 in the tree
     let our_idx = 7;
-    let (card, card_nonce) = get_test_card(our_idx);
+    let (card, card_com_rand) = get_test_card(our_idx);
 
     //
     // Now generate a proof
@@ -91,7 +91,7 @@ fn main() {
         // Witness to membership
         auth_path,
         // Commitment opening details
-        card_nonce,
+        card_com_rand,
         card_purchase_price: card.purchase_price,
     };
 

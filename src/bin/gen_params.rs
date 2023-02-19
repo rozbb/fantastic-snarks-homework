@@ -60,7 +60,7 @@ fn main() {
         // Witness to membership
         auth_path: random_auth_path,
         // Commitment opening details
-        card_nonce: F::rand(&mut rng),
+        card_com_rand: F::rand(&mut rng),
         card_purchase_price: F::rand(&mut rng),
     };
 

@@ -26,19 +26,23 @@ pub struct Card {
 }
 
 impl Card {
-    /// Commits to `(self.amount, self.serial_num)` using `nonce` as the nonce. Concretely, this
-    /// computes `Hash(nonce || amount || nulifier)`
-    pub fn commit(&self, leaf_crh_params: &<LeafHash as CRHScheme>::Parameters, nonce: &F) -> Leaf {
+    /// Commits to `(self.amount, self.serial_num)` using `com_rand` as the commitment randomness.
+    /// Concretely, this computes `Hash(com_rand || amount || nulifier)`
+    pub fn commit(
+        &self,
+        leaf_crh_params: &<LeafHash as CRHScheme>::Parameters,
+        com_rand: &F,
+    ) -> Leaf {
         // This will be the buffer we feed into the hash function
         let mut buf = Vec::new();
 
-        // Serialize the nonce
-        nonce.serialize_uncompressed(&mut buf).unwrap();
+        // Serialize the randomness
+        com_rand.serialize_uncompressed(&mut buf).unwrap();
 
         // Now serialize the card
         self.serialize_uncompressed(&mut buf).unwrap();
 
-        // Now compute Hash(nonce || amount || nulifier)
+        // Now compute Hash(com_rand || amount || nulifier)
         let claimed_leaf_hash = LeafHash::evaluate(&leaf_crh_params, buf.as_slice()).unwrap();
 
         <MerkleConfig as Config>::LeafInnerDigestConverter::convert(claimed_leaf_hash)
@@ -78,16 +82,16 @@ impl ToBytesGadget<F> for CardVar {
 }
 
 impl CardVar {
-    /// Commits to this card using the given nonce. Concretely, this computes `Hash(nonce ||
-    /// self.amount || self.serial_num)`.
+    /// Commits to this card using the given commitment randomness. Concretely, this computes
+    /// `Hash(com_rand || self.amount || self.serial_num)`.
     pub fn commit(
         &self,
         hash_params: &LeafHashParamsVar,
-        nonce: &FV,
+        com_rand: &FV,
     ) -> Result<Vec<UInt8<F>>, SynthesisError> {
-        let nonce_bytes = nonce.to_bytes()?;
+        let com_rand_bytes = com_rand.to_bytes()?;
         let card_bytes = self.to_bytes()?;
-        let hash = LeafHashGadget::evaluate(&hash_params, &[nonce_bytes, card_bytes].concat())?;
+        let hash = LeafHashGadget::evaluate(&hash_params, &[com_rand_bytes, card_bytes].concat())?;
         hash.to_bytes()
     }
 }
