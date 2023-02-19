@@ -5,8 +5,11 @@ In this project we will build a system for proving possession and details about 
 Our goal is to familiarize ourselves with the workflow of writing zero-knowledge proofs in the [arkworks](https://github.com/arkworks-rs/) ecosystem. We will learn how to build zero-knowledge circuits, prove openings to cryptographic commitments, and prove membership in a Merkle tree. The purpose of this exercise is to make you feel comfortable playing with new ideas in arkworks. It is a massive framework, with lots of features, as well as weird sharp corners, so jumping right in might just be the best way to get started.
 
 # Using Rust
-
-[Install Rust.](https://www.rust-lang.org/learn/get-started)
+TLDR:
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+Want to know more? [Install Rust.](https://www.rust-lang.org/learn/get-started)
 
 If you're familiar with other languages and want a crash course in Rust, I like [this](https://fasterthanli.me/articles/a-half-hour-to-learn-rust) tutorial. Beyond this, I don't have specific recommendations. This [meta-guide](https://gist.github.com/noxasaxon/7bf5ebf930e281529161e51cd221cf8a) has lots of resources for people of all incoming skill levels. Pick whatever suits your current comfort level and play with that. I'm looking for feedback here, so keep in mind what tutorials you tried and liked and disliked.
 
