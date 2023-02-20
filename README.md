@@ -9,6 +9,13 @@ TLDR:
 ```
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
+If you want to test if things work, you can run the tests. They will fail and spit out warnings because the code is incomplete
+```
+git clone repoURL 
+cd fantastic-snarks-homework
+cargo test
+```
+
 Want to know more? [Install Rust.](https://www.rust-lang.org/learn/get-started)
 
 If you're familiar with other languages and want a crash course in Rust, I like [this](https://fasterthanli.me/articles/a-half-hour-to-learn-rust) tutorial. Beyond this, I don't have specific recommendations. This [meta-guide](https://gist.github.com/noxasaxon/7bf5ebf930e281529161e51cd221cf8a) has lots of resources for people of all incoming skill levels. Pick whatever suits your current comfort level and play with that. I'm looking for feedback here, so keep in mind what tutorials you tried and liked and disliked.
