@@ -12,7 +12,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 If you want to test if things work, you can run the tests. They will fail and spit out warnings because the code is incomplete
 ```
 git clone repoURL 
-cd fantastic-snarks-homework
+cd fantastic-snarks-homework/
 cargo test
 ```
 
