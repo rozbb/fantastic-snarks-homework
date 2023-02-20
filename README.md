@@ -9,9 +9,9 @@ TLDR:
 ```
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
-If you want to test if things work, you can run the tests. They will fail and spit out warnings because the code is incomplete
+If you want to test if things work, you can run the tests. They will fail and spit out warnings because the code is incomplete. This will ask for your UMD credentials. 
 ```
-git clone repoURL 
+git clone https://code.umd.edu/imiers/fantastic-snarks-homework/ 
 cd fantastic-snarks-homework/
 cargo test
 ```
