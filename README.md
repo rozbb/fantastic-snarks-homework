@@ -9,6 +9,13 @@ TLDR:
 ```
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
+If you want to test if things work, you can run the tests. They will fail and spit out warnings because the code is incomplete. This will ask for your UMD credentials. 
+```
+git clone https://code.umd.edu/imiers/fantastic-snarks-homework/ 
+cd fantastic-snarks-homework/
+cargo test
+```
+
 Want to know more? [Install Rust.](https://www.rust-lang.org/learn/get-started)
 
 If you're familiar with other languages and want a crash course in Rust, I like [this](https://fasterthanli.me/articles/a-half-hour-to-learn-rust) tutorial. Beyond this, I don't have specific recommendations. This [meta-guide](https://gist.github.com/noxasaxon/7bf5ebf930e281529161e51cd221cf8a) has lots of resources for people of all incoming skill levels. Pick whatever suits your current comfort level and play with that. I'm looking for feedback here, so keep in mind what tutorials you tried and liked and disliked.
@@ -206,8 +213,8 @@ Lloyd's has changed their policy. They now require everyone to reveal the purcha
 
 In this extra credit, you do just that:
 
-1. Copy `src/constraints.rs` to `src/constraints_showprice.rs` and put `mod constraints_showprice` in `lib.rs`. Rename the `PossessionCircuit` to `PossessionShowPriceCircuit`. Modify `PossessionShowAmtCircuit` to use `card_purchase_price` as a public input rather than a witness. This should not require updating tests.
-2. Copy `src/bin/gen_params.rs` to `src/bin/gen_params_showprice`. Make it use `PossessionShowPriceCircuit`. Its output files should not clash with the normal `gen_params.rs`, so make it output the proving/verifying keys to `possession_showamt_proving_key.bin` and `possession_showamt_verifying_key.bin`. You don't need to change the Pedersen params filename. They are the same.
+1. Copy `src/constraints.rs` to `src/constraints_showprice.rs` and put `mod constraints_showprice` in `lib.rs`. Rename the `PossessionCircuit` to `PossessionShowPriceCircuit`. Modify `PossessionShowPriceCircuit` to use `card_purchase_price` as a public input rather than a witness. This should not require updating tests.
+2. Copy `src/bin/gen_params.rs` to `src/bin/gen_params_showprice`. Make it use `PossessionShowPriceCircuit`. Its output files should not clash with the normal `gen_params.rs`, so make it output the proving/verifying keys to `possession_showprice_proving_key.bin` and `possession_showprice_verifying_key.bin`. You don't need to change the Pedersen params filename. They are the same.
 3. Copy `src/bin/prove.rs` to `src/bin/prove_showprice.rs`. Make it use `PossessionShowPriceCircuit`. It should take in the file produced in the previous step. The prover should output the purchase price to `possession_purchase_price.bin`, and its proof to `possession_showprice_proof.bin`. The rest can stay the same if you want.
 4. Copy `src/bin/verify.rs` to `src/bin/verify_showprice.rs`. Make it use `PossessionShowPriceCircuit`. It should take in the proof generated above, as well as all the public inputs, PLUS the new public input in `possession_purchase_price.bin` (you'll have to edit the command line arg parsing routine for this). It should use the purchase price as public input for verification.
 
