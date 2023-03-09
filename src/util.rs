@@ -19,6 +19,12 @@ pub const POSSESSION_VK_FILENAME: &str = "possession_verifying_key.bin";
 pub const POSSESSION_PROOF_FILENAME: &str = "possession_proof.bin";
 pub const POSSESSION_REVEALED_SERIAL_FILENAME: &str = "possession_revealed_serial.bin";
 
+// INSERTED IN EXTRA CREDIT SOLUTION
+pub const POSSESSION_SHOWPRICE_PK_FILENAME: &str = "possession_showprice_proving_key.bin";
+pub const POSSESSION_SHOWPRICE_VK_FILENAME: &str = "possession_showprice_verifying_key.bin";
+pub const POSSESSION_SHOWPRICE_PROOF_FILENAME: &str = "possession_showprice_proof.bin";
+pub const POSSESSION_REVEALED_PRICE_FILENAME: &str = "possession_revealed_price.bin";
+
 pub const PEDERSEN_PARAMS_FILENAME: &str = "pedersen_params.bin";
 
 /// A helper function that deterministically creates 16 baseball cards and their commitment

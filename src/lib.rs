@@ -2,6 +2,7 @@ pub mod util;
 
 pub mod card;
 pub mod constraints;
+pub mod constraints_showprice;
 pub mod hash;
 pub mod merkle;
 
